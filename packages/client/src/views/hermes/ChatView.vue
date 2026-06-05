@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/hermes/app'
 import { useChatStore } from '@/stores/hermes/chat'
 import { useProfilesStore } from '@/stores/hermes/profiles'
 import { useSettingsStore } from '@/stores/hermes/settings'
+import { productName } from '@/config/brand'
 
 const appStore = useAppStore()
 const chatStore = useChatStore()
@@ -24,7 +25,7 @@ const routeProfile = computed(() => {
   return typeof value === 'string' && value.trim() ? value : null
 })
 
-const productTitle = 'Hermes Studio'
+const productTitle = productName
 const tabTitle = computed(() => {
   if (route.name !== 'hermes.session') return productTitle
   return chatStore.activeSession?.title?.trim() || productTitle

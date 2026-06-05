@@ -7,6 +7,7 @@ import pkg from './package.json'
 const FRONTEND_PORT = Number(process.env.HERMES_WEB_UI_FRONTEND_PORT || 8649)
 const BACKEND_PORT = process.env.HERMES_WEB_UI_BACKEND_PORT || '8648'
 const BACKEND = `http://127.0.0.1:${BACKEND_PORT}`
+const PRODUCT_NAME = process.env.VITE_HERMES_PRODUCT_NAME?.trim() || 'aipresales'
 
 function createProxyConfig(): ProxyOptions {
   return {
@@ -29,7 +30,15 @@ function createProxyConfig(): ProxyOptions {
 export default defineConfig({
   root: 'packages/client',
   envDir: resolve(__dirname),
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      name: 'inject-product-name',
+      transformIndexHtml(html) {
+        return html.replace(/<title>.*?<\/title>/, `<title>${PRODUCT_NAME}</title>`)
+      },
+    },
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

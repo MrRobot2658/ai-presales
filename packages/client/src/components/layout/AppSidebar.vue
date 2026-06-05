@@ -85,8 +85,7 @@ function openChangelog() {
 <template>
   <aside class="sidebar" :class="{ open: appStore.sidebarOpen, collapsed: appStore.sidebarCollapsed }">
     <RouteLinkItem class="sidebar-logo" :to="{ name: 'hermes.chat' }">
-      <img :src="logoPath" alt="Hermes Studio" class="logo-img" />
-      <span class="logo-text">Hermes Studio</span>
+      <img :src="logoPath" alt="径硕科技 JINGDIGITAL" class="logo-img" />
       <!-- <video class="logo-dance" :src="isDark ? danceVideoDark : danceVideoLight" autoplay loop muted playsinline /> -->
     </RouteLinkItem>
 
@@ -408,10 +407,13 @@ function openChangelog() {
 }
 
 .logo-img {
-  width: 28px;
-  height: 28px;
+  width: auto;
+  height: 34px;
+  max-width: calc(100% - 36px);
+  object-fit: contain;
+  object-position: left center;
   border-radius: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .sidebar-logo {
@@ -728,6 +730,14 @@ function openChangelog() {
     .logo-text {
       display: none;
     }
+  }
+
+  .logo-img {
+    width: 32px;
+    height: 28px;
+    max-width: 32px;
+    object-fit: cover;
+    object-position: left center;
   }
 
   .collapse-btn {

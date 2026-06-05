@@ -23,6 +23,7 @@ services:
       - HERMES_WEB_UI_XAI_CALLBACK_BIND_HOST=0.0.0.0
       - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       - HERMES_ALLOW_ROOT_GATEWAY=1
+      - HERMES_OPENROUTER_APP_TITLE=${HERMES_OPENROUTER_APP_TITLE:-aipresales}
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${PORT:-6060}/health"]
       interval: 30s

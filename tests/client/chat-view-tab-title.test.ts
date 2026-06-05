@@ -8,6 +8,7 @@ import { useAppStore } from '@/stores/hermes/app'
 import { useChatStore, type Session } from '@/stores/hermes/chat'
 import { useProfilesStore } from '@/stores/hermes/profiles'
 import { useSettingsStore } from '@/stores/hermes/settings'
+import { productName } from '@/config/brand'
 
 vi.mock('@/components/hermes/chat/ChatPanel.vue', () => ({
   default: { template: '<div data-testid="chat-panel" />' },
@@ -76,7 +77,7 @@ function makeSession(title: string): Session {
 describe('ChatView tab title', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    document.title = 'Hermes Studio'
+    document.title = productName
     setActivePinia(createPinia())
 
     const appStore = useAppStore()
@@ -103,7 +104,7 @@ describe('ChatView tab title', () => {
     expect(document.title).toBe('Implementation Notes')
 
     wrapper.unmount()
-    expect(document.title).toBe('Hermes Studio')
+    expect(document.title).toBe(productName)
   })
 
   it('falls back to the product title when the session title is blank', () => {
@@ -112,7 +113,7 @@ describe('ChatView tab title', () => {
 
     const wrapper = mount(ChatView)
 
-    expect(document.title).toBe('Hermes Studio')
+    expect(document.title).toBe(productName)
     wrapper.unmount()
   })
 })

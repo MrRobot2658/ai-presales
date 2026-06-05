@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { setApiKey, hasApiKey } from "@/api/client";
 import { fetchAuthStatus, loginWithPassword } from "@/api/auth";
+import { productName } from "@/config/brand";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -62,9 +63,9 @@ async function handlePasswordLogin() {
   <div class="login-view">
     <div class="login-card">
       <div class="login-logo">
-        <img src="/logo.png" alt="Hermes" width="80" height="80" />
+        <img src="/logo.png" alt="径硕科技 JINGDIGITAL" class="login-logo-img" />
       </div>
-      <h1 class="login-title">{{ t("login.title") }}</h1>
+      <h1 class="login-title">{{ productName }}</h1>
       <p class="login-desc">{{ t("login.description") }}</p>
       <p class="login-default-hint">{{ t("login.defaultCredentialsHint") }}</p>
 
@@ -126,6 +127,14 @@ async function handlePasswordLogin() {
 
 .login-logo {
   margin-bottom: 24px;
+}
+
+.login-logo-img {
+  width: auto;
+  max-width: min(280px, 100%);
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
 }
 
 .login-title {
