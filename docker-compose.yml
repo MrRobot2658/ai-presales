@@ -1,0 +1,34 @@
+services:
+  hermes-webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${HERMES_AGENT_IMAGE:-nousresearch/hermes-agent:latest}
+    image: ${WEBUI_IMAGE:-hermes-web-ui-local:latest}
+    container_name: ${WEBUI_CONTAINER_NAME:-hermes-webui}
+    ports:
+      - "${PORT:-6060}:${PORT:-6060}"
+      - "${PREVIEW_FRONTEND_PORT:-8651}:8651"
+      - "${XAI_OAUTH_PORT:-56121}:56121"
+    volumes:
+      - ${HERMES_DATA_DIR:-./hermes_data}:/home/agent/.hermes
+      - ${HERMES_DATA_DIR:-./hermes_data}/hermes-web-ui:/home/agent/.hermes-web-ui
+    environment:
+      - PORT=${PORT:-6060}
+      - BIND_HOST=${BIND_HOST:-0.0.0.0}
+      - HERMES_HOME=/home/agent/.hermes
+      - HERMES_BIN=${HERMES_BIN:-/opt/hermes/.venv/bin/hermes}
+      - HERMES_WEB_UI_MANAGED_GATEWAY=1
+      - HERMES_WEB_UI_XAI_CALLBACK_BIND_HOST=0.0.0.0
+      - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - HERMES_ALLOW_ROOT_GATEWAY=1
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${PORT:-6060}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
