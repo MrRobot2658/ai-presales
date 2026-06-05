@@ -1,6 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { hasApiKey, isStoredSuperAdmin } from '@/api/client'
 
+const presalesDefaultRoute = import.meta.env.VITE_HERMES_PRESALES_MODE === '0' || import.meta.env.VITE_HERMES_PRESALES_MODE === 'false'
+  ? 'hermes.chat'
+  : 'presales.overview'
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -14,6 +18,36 @@ const router = createRouter({
       path: '/hermes/chat',
       name: 'hermes.chat',
       component: () => import('@/views/hermes/ChatView.vue'),
+    },
+    {
+      path: '/presales/overview',
+      name: 'presales.overview',
+      component: () => import('@/views/presales/OpportunityOverviewView.vue'),
+    },
+    {
+      path: '/presales/opportunities',
+      name: 'presales.opportunities',
+      component: () => import('@/views/presales/OpportunityListView.vue'),
+    },
+    {
+      path: '/presales/knowledge',
+      name: 'presales.knowledge',
+      component: () => import('@/views/presales/KnowledgeBaseView.vue'),
+    },
+    {
+      path: '/presales/content',
+      name: 'presales.content',
+      component: () => import('@/views/presales/ContentManagementView.vue'),
+    },
+    {
+      path: '/presales/generating/:draftId',
+      name: 'presales.generating',
+      component: () => import('@/views/presales/DocumentGeneratingView.vue'),
+    },
+    {
+      path: '/presales/editor/:draftId',
+      name: 'presales.editor',
+      component: () => import('@/views/presales/DocumentEditorView.vue'),
     },
     {
       path: '/hermes/session/:sessionId',
@@ -142,7 +176,7 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.public) {
     // Already has key, skip login
     if (to.name === 'login' && hasApiKey()) {
-      next({ path: '/hermes/chat' })
+      next({ name: presalesDefaultRoute })
       return
     }
     next()
@@ -156,7 +190,7 @@ router.beforeEach((to, _from, next) => {
   }
 
   if (to.meta.requiresSuperAdmin && !isStoredSuperAdmin()) {
-    next({ name: 'hermes.chat' })
+    next({ name: presalesDefaultRoute })
     return
   }
 

@@ -1,0 +1,147 @@
+@use '@/styles/variables' as *;
+
+.presales-page {
+  height: 100%;
+  overflow: auto;
+  padding: 20px 24px 32px;
+}
+
+.page-header h2 {
+  margin: 0 0 20px;
+  font-size: 22px;
+  color: $text-primary;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  padding: 18px;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $bg-card;
+
+  .label {
+    display: block;
+    font-size: 13px;
+    color: $text-muted;
+    margin-bottom: 8px;
+  }
+
+  strong {
+    font-size: 28px;
+    color: $text-primary;
+  }
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.panel {
+  padding: 16px;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $bg-card;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: $text-primary;
+  }
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  h3 { margin: 0; }
+}
+
+.rank-row,
+.suggest-row,
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid $border-color;
+
+  &:last-child { border-bottom: none; }
+}
+
+.rank-no {
+  width: 24px;
+  text-align: center;
+  color: $text-muted;
+  font-weight: 600;
+}
+
+.rank-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong { color: $text-primary; font-size: 14px; }
+  span { color: $text-muted; font-size: 12px; }
+}
+
+.suggest-row {
+  flex-direction: column;
+  align-items: flex-start;
+
+  .suggest-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: $text-secondary;
+    line-height: 1.5;
+  }
+}
+
+.bar-row {
+  span:first-child { width: 56px; font-size: 13px; color: $text-secondary; }
+  span:last-child { width: 28px; text-align: right; color: $text-muted; font-size: 12px; }
+}
+
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(var(--accent-primary-rgb), 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: $accent-primary;
+  border-radius: 999px;
+
+  &.region { background: #7c5cff; }
+}
+
+.footer-actions {
+  margin-top: 8px;
+}
+
+@media (max-width: $breakpoint-mobile) {
+  .stat-grid,
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+}

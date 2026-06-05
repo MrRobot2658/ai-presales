@@ -14,6 +14,7 @@ import RouteLinkItem from '@/components/common/RouteLinkItem.vue'
 import { changelog } from "@/data/changelog";
 import { isStoredSuperAdmin } from "@/api/client";
 import { isGithubLinkHidden, isSidebarGroupHidden, isSidebarItemHidden, isStudioVersionHidden, isWebsiteLinkHidden } from "@/config/ui-visibility";
+import { isPresalesMode } from "@/config/presales-mode";
 
 const { t } = useI18n();
 const message = useMessage();
@@ -25,6 +26,7 @@ const selectedKey = computed(() => {
   if (route.name === "hermes.session") return "hermes.chat";
   if (route.name === "hermes.historySession") return "hermes.history";
   if (route.name === "hermes.groupChatRoom") return "hermes.groupChat";
+  if (route.name === "presales.editor" || route.name === "presales.generating") return "presales.content";
   return route.name as string;
 });
 const isSuperAdmin = computed(() => isStoredSuperAdmin());
@@ -37,6 +39,8 @@ function hasRoute(name: string): boolean {
   return router.hasRoute(name);
 }
 const logoPath = '/logo.png';
+const presalesMode = isPresalesMode();
+const homeRoute = presalesMode ? 'presales.overview' : 'hermes.chat';
 
 const { record: collapsedGroups, persist: persistCollapsedGroups } = usePersistentRecord('hermes.sidebar.collapsedGroups');
 
@@ -84,7 +88,7 @@ function openChangelog() {
 
 <template>
   <aside class="sidebar" :class="{ open: appStore.sidebarOpen, collapsed: appStore.sidebarCollapsed }">
-    <RouteLinkItem class="sidebar-logo" :to="{ name: 'hermes.chat' }">
+    <RouteLinkItem class="sidebar-logo" :to="{ name: homeRoute }">
       <img :src="logoPath" alt="径硕科技 JINGDIGITAL" class="logo-img" />
       <!-- <video class="logo-dance" :src="isDark ? danceVideoDark : danceVideoLight" autoplay loop muted playsinline /> -->
     </RouteLinkItem>
@@ -97,8 +101,37 @@ function openChangelog() {
     </button>
 
     <nav class="sidebar-nav">
+      <!-- Presales menu -->
+      <div v-if="presalesMode" class="nav-group">
+        <div class="nav-group-label">
+          <span>{{ t('sidebar.groupPresales') }}</span>
+        </div>
+        <div class="nav-group-items">
+          <RouteLinkItem class="nav-item" :to="{ name: 'presales.overview' }" :active="selectedKey === 'presales.overview'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>{{ t('sidebar.opportunityOverview') }}</span>
+          </RouteLinkItem>
+          <RouteLinkItem class="nav-item" :to="{ name: 'presales.opportunities' }" :active="selectedKey === 'presales.opportunities'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <span>{{ t('sidebar.opportunityList') }}</span>
+          </RouteLinkItem>
+          <RouteLinkItem class="nav-item" :to="{ name: 'presales.knowledge' }" :active="selectedKey === 'presales.knowledge'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>{{ t('sidebar.knowledgeBase') }}</span>
+          </RouteLinkItem>
+          <RouteLinkItem class="nav-item" :to="{ name: 'presales.content' }" :active="isNavActive('presales.content', 'presales.editor', 'presales.generating')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>{{ t('sidebar.contentManagement') }}</span>
+          </RouteLinkItem>
+          <RouteLinkItem class="nav-item" :to="{ name: 'hermes.chat' }" :active="isNavActive('hermes.chat', 'hermes.session')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>{{ t('sidebar.assistant') }}</span>
+          </RouteLinkItem>
+        </div>
+      </div>
+
       <!-- Conversation -->
-      <div class="nav-group">
+      <div v-if="!presalesMode" class="nav-group">
         <div class="nav-group-label" @click="toggleGroup('conversation')">
           <span>{{ groupLabel("Conversation") }}</span>
           <svg class="nav-group-arrow" :class="{ collapsed: isGroupCollapsed('conversation') }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -143,7 +176,7 @@ function openChangelog() {
       </div>
 
       <!-- Agent -->
-      <div v-if="!isSidebarGroupHidden('agent')" class="nav-group">
+      <div v-if="!presalesMode && !isSidebarGroupHidden('agent')" class="nav-group">
         <div class="nav-group-label" @click="toggleGroup('agent')">
           <span>{{ groupLabel("Agent") }}</span>
           <svg class="nav-group-arrow" :class="{ collapsed: isGroupCollapsed('agent') }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -224,7 +257,7 @@ function openChangelog() {
       </div>
 
       <!-- Monitoring -->
-      <div v-if="!isSidebarGroupHidden('monitoring')" class="nav-group">
+      <div v-if="!presalesMode && !isSidebarGroupHidden('monitoring')" class="nav-group">
         <div class="nav-group-label" @click="toggleGroup('monitoring')">
           <span>{{ groupLabel("Monitoring") }}</span>
           <svg class="nav-group-arrow" :class="{ collapsed: isGroupCollapsed('monitoring') }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -267,7 +300,7 @@ function openChangelog() {
       </div>
 
       <!-- Tools -->
-      <div v-if="!isSidebarGroupHidden('tools')" class="nav-group">
+      <div v-if="!presalesMode && !isSidebarGroupHidden('tools')" class="nav-group">
         <div class="nav-group-label" @click="toggleGroup('tools')">
           <span>{{ groupLabel("Tools") }}</span>
           <svg class="nav-group-arrow" :class="{ collapsed: isGroupCollapsed('tools') }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -298,7 +331,7 @@ function openChangelog() {
       </div>
 
       <!-- System -->
-      <div class="nav-group">
+      <div v-if="!presalesMode" class="nav-group">
         <div class="nav-group-label" @click="toggleGroup('system')">
           <span>{{ groupLabel("System") }}</span>
           <svg class="nav-group-arrow" :class="{ collapsed: isGroupCollapsed('system') }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

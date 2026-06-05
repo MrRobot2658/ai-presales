@@ -1,3 +1,5 @@
+import { presalesZh } from './presales'
+
 export default {
   // 登录
   login: {
@@ -179,7 +181,13 @@ export default {
   },
 
   sidebar: {
-    chat: '对话',
+    chat: '智能助手',
+    assistant: '智能助手',
+    opportunityOverview: '商机概览',
+    opportunityList: '商机列表',
+    knowledgeBase: '知识库',
+    contentManagement: '内容管理',
+    groupPresales: '功能',
     search: '搜索',
     apiRelay: '中转站',
     history: '历史',
@@ -1569,4 +1577,6 @@ export default {
     new_0_6_7_8: '补充 coding agents 仓库 harness、验证文档和 agent 指南，同时移除过期 setup script 文档',
 
   },
+
+  presales: presalesZh,
 }

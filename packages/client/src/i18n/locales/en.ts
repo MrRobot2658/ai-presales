@@ -1,3 +1,5 @@
+import { presalesEn } from './presales'
+
 export default {
   // Login
   login: {
@@ -180,6 +182,12 @@ export default {
   // Sidebar
   sidebar: {
     chat: 'Chat',
+    assistant: 'Smart Assistant',
+    opportunityOverview: 'Overview',
+    opportunityList: 'Opportunities',
+    knowledgeBase: 'Knowledge Base',
+    contentManagement: 'Content',
+    groupPresales: 'Features',
     search: 'Search',
     apiRelay: 'API Relay',
     history: 'History',
@@ -1567,4 +1575,6 @@ export default {
     new_0_6_7_8: 'Repository harness, validation docs, and agent guidance were added for coding agents, while stale setup script docs were removed',
 
   },
+
+  presales: presalesEn,
 }

@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { setApiKey, hasApiKey } from "@/api/client";
 import { fetchAuthStatus, loginWithPassword } from "@/api/auth";
 import { productName } from "@/config/brand";
+import { isPresalesMode } from "@/config/presales-mode";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -15,9 +16,11 @@ const loading = ref(false);
 const errorMsg = ref("");
 const showLockResetHint = ref(false);
 
+const homeRoute = isPresalesMode() ? '/presales/overview' : '/hermes/chat';
+
 // If already has a key, try to go to main page
 if (hasApiKey()) {
-  router.replace("/hermes/chat");
+  router.replace(homeRoute);
 }
 
 onMounted(async () => {
@@ -45,7 +48,7 @@ async function handlePasswordLogin() {
   try {
     const sessionToken = await loginWithPassword(username.value.trim(), password.value);
     setApiKey(sessionToken);
-    router.replace("/hermes/chat");
+    router.replace(homeRoute);
   } catch (err: any) {
     if (err.status === 429 || err.status === 503) {
       errorMsg.value = t("login.tooManyAttempts");
