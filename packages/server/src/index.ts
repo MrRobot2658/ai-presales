@@ -20,6 +20,7 @@ import { GroupChatServer } from './services/hermes/group-chat'
 import { ChatRunSocket } from './services/hermes/run-chat'
 import { getAgentBridgeManager, startAgentBridgeManager } from './services/hermes/agent-bridge'
 import { HermesSkillInjector } from './services/hermes/skill-injector'
+import { ensurePresalesProfilesForAll } from './services/presales/presales-profile-provision'
 import { ensureProfileGatewaysRunning } from './services/hermes/gateway-autostart'
 import { refreshConfiguredProviderModelCatalogsInBackground } from './services/hermes/model-catalog-cache'
 import { logger } from './services/logger'
@@ -177,6 +178,14 @@ export async function bootstrap() {
       logger.warn(err, '[bootstrap] failed to inject bundled skills')
       console.warn('[bootstrap] failed to inject bundled skills:', err instanceof Error ? err.message : err)
     }
+  }
+
+  try {
+    await ensurePresalesProfilesForAll()
+    console.log('[bootstrap] presales profile layouts ensured')
+  } catch (err) {
+    logger.warn(err, '[bootstrap] failed to ensure presales profile layouts')
+    console.warn('[bootstrap] failed to ensure presales profile layouts:', err instanceof Error ? err.message : err)
   }
 
   if (!isDesktopRuntime()) {

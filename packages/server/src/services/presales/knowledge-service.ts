@@ -10,6 +10,7 @@ import {
   inferMimeType,
   sanitizeFilename,
 } from './knowledge-paths'
+import { ensurePresalesProfileLayout } from './presales-profile-provision'
 
 export interface KnowledgeListItem {
   id: string
@@ -86,6 +87,7 @@ export interface UploadKnowledgeInput {
 
 export async function uploadKnowledgeAsset(input: UploadKnowledgeInput): Promise<KnowledgeListItem> {
   const { tenant, fileBuffer, cleanRequirement } = input
+  await ensurePresalesProfileLayout(tenant.hermesProfileName)
   const originalFilename = sanitizeFilename(input.originalFilename)
   const mimeType = input.mimeType || inferMimeType(originalFilename)
   const fileType = inferFileType(originalFilename, mimeType)

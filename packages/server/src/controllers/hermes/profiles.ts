@@ -15,6 +15,7 @@ import { smartCloneCleanup } from '../../services/hermes/profile-credentials'
 import { detectHermesRootHome } from '../../services/hermes/hermes-path'
 import { getActiveProfileName } from '../../services/hermes/hermes-profile'
 import { HermesSkillInjector } from '../../services/hermes/skill-injector'
+import { ensurePresalesProfileLayout } from '../../services/presales/presales-profile-provision'
 import type { HermesProfile } from '../../services/hermes/hermes-cli'
 import { listUserProfiles } from '../../db/hermes/users-store'
 
@@ -115,6 +116,7 @@ async function injectBundledSkillsForProfile(name: string): Promise<void> {
         updated: target.updated,
       }, '[profiles] synced bundled skills for profile')
     }
+    await ensurePresalesProfileLayout(name)
   } catch (err: any) {
     logger.warn(err, '[profiles] failed to sync bundled skills for profile "%s"', name)
   }

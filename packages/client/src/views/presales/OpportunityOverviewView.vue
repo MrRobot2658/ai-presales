@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NTag } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +10,10 @@ const { t } = useI18n()
 const router = useRouter()
 const store = usePresalesStore()
 const showAllRanking = ref(false)
+
+onMounted(() => {
+  void store.fetchOpportunities()
+})
 
 const ranking = () => showAllRanking.value
   ? [...store.opportunities].sort((a, b) => b.matchScore - a.matchScore)

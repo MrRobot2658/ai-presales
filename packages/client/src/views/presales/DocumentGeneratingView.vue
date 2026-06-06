@@ -21,14 +21,18 @@ const activeStep = ref(0)
 const chainLines = ref<string[]>([])
 
 onMounted(async () => {
-  if (!draft.value) {
+  if (!store.getDraft(draftId.value)) {
+    await store.fetchContentDrafts()
+  }
+  const loadedDraft = store.getDraft(draftId.value)
+  if (!loadedDraft) {
     router.replace({ name: 'presales.content' })
     return
   }
 
-  const knowledgeNames = draft.value.knowledgeRefs.join(', ')
+  const knowledgeNames = loadedDraft.knowledgeRefs.join(', ')
   const chain = [
-    `${t('presales.generating.chain1')} ${draft.value.companyName}`,
+    `${t('presales.generating.chain1')} ${loadedDraft.companyName}`,
     `${t('presales.generating.chain2')} ${knowledgeNames || 'kb-1'}`,
     t('presales.generating.chain3'),
     t('presales.generating.chain4'),
@@ -40,7 +44,7 @@ onMounted(async () => {
     await new Promise((r) => setTimeout(r, 1200))
   }
 
-  store.finishGenerating(draftId.value)
+  await store.finishGenerating(draftId.value)
   router.replace({ name: 'presales.editor', params: { draftId: draftId.value } })
 })
 </script>

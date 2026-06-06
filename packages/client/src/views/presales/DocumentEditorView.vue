@@ -30,8 +30,8 @@ onMounted(() => {
   sections.value = draft.value.sections.map((s) => ({ ...s }))
 })
 
-function saveDraft() {
-  store.saveDraft(draftId.value, htmlContent.value, sections.value)
+async function saveDraft() {
+  await store.saveDraft(draftId.value, htmlContent.value, sections.value)
   message.success(t('presales.editor.saved'))
   router.push({ name: 'presales.content' })
 }

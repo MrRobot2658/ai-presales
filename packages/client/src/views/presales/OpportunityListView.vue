@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref } from 'vue'
+import { h, onMounted, ref } from 'vue'
 import { NButton, NDataTable, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { usePresalesStore } from '@/stores/presales'
@@ -15,6 +15,11 @@ const selected = ref<Opportunity | null>(null)
 const showInsight = ref(false)
 const showCompany = ref(false)
 const showGenerate = ref(false)
+
+onMounted(() => {
+  void store.fetchOpportunities()
+  void store.fetchKnowledgeFiles()
+})
 
 function openInsight(row: Opportunity) {
   selected.value = row

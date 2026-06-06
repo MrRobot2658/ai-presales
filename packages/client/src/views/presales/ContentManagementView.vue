@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDataTable, NTag, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -9,6 +9,10 @@ import type { ContentDraft } from '@/data/presales-mock'
 const { t } = useI18n()
 const router = useRouter()
 const store = usePresalesStore()
+
+onMounted(() => {
+  void store.fetchContentDrafts()
+})
 
 const columns: DataTableColumns<ContentDraft> = [
   { title: () => t('presales.content.company'), key: 'companyName', minWidth: 160 },

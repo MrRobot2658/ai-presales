@@ -30,9 +30,9 @@ watch(() => props.show, (open) => {
   }
 })
 
-function handleGenerate() {
+async function handleGenerate() {
   if (!props.opportunity) return
-  const draft = store.createDraft({
+  const draft = await store.createDraft({
     opportunityId: props.opportunity.id,
     companyName: props.opportunity.companyName,
     scenario: scenario.value,
