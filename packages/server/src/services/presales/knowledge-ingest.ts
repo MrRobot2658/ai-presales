@@ -3,10 +3,9 @@ import { join, extname } from 'path'
 import { pgQuery, withPgTransaction } from '../../db/postgres/pool'
 import { createSession } from '../../db/hermes/session-store'
 import { AgentBridgeClient } from '../hermes/agent-bridge'
-import { getProfileDir } from '../hermes/hermes-profile'
 import { logger } from '../logger'
 import type { KnowledgeIngestQueuePayload } from './knowledge-queue'
-import { sanitizeFilename } from './knowledge-paths'
+import { sanitizeFilename, getProfileKnowledgeRoot, getProfileKnowledgeRelRoot } from './knowledge-paths'
 
 const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'csv', 'json'])
 
@@ -17,8 +16,9 @@ interface ParsedCleanResult {
 }
 
 function buildProcessedPaths(profileName: string, assetId: string) {
-  const dir = join(getProfileDir(profileName), 'knowledge', 'processed', assetId)
-  const relPath = `knowledge/processed/${assetId}/cleaned.md`
+  const relRoot = getProfileKnowledgeRelRoot(profileName)
+  const dir = join(getProfileKnowledgeRoot(profileName), 'processed', assetId)
+  const relPath = `${relRoot}/processed/${assetId}/cleaned.md`
   const absPath = join(dir, 'cleaned.md')
   return { dir, relPath, absPath }
 }

@@ -34,10 +34,10 @@ You can also read data files directly without HTTP:
 | Resource | Profile path |
 | --- | --- |
 | Opportunity list | `presales/opportunities.json` |
-| Knowledge raw uploads | `knowledge/raw/{assetId}/` |
-| Cleaned knowledge | `knowledge/processed/{assetId}/cleaned.md` |
+| Knowledge raw uploads | `content/knowledge/raw/{assetId}/` |
+| Cleaned knowledge | `content/knowledge/processed/{assetId}/cleaned.md` |
 | Content drafts | `content/drafts/{draftId}.json` |
-| Generated PPT (default) | `content/ppt/{draftId}/` |
+| Generated PPT (default) | `content/ppt/` |
 | Generated Word (default) | `content/word/{draftId}/` |
 
 ## HTTP APIs (BFF)

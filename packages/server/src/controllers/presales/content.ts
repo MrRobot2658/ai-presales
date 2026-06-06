@@ -1,6 +1,8 @@
 import type { Context } from 'koa'
+import { createReadStream } from 'fs'
 import {
   createContentDraft,
+  getContentArtifactPath,
   getContentDraft,
   listContentDrafts,
   updateContentDraft,
@@ -104,4 +106,24 @@ export async function patch(ctx: Context) {
   }
 
   ctx.body = { item, tenant: tenantSummary(ctx) }
+}
+
+export async function download(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  const artifact = await getContentArtifactPath(tenant, ctx.params.id)
+  if (!artifact) {
+    ctx.status = 404
+    ctx.body = { error: 'Content file not found' }
+    return
+  }
+
+  ctx.set('Content-Type', 'application/octet-stream')
+  ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(artifact.filename)}"`)
+  ctx.body = createReadStream(artifact.absPath)
 }

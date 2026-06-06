@@ -78,3 +78,34 @@ export async function getContentDraft(id: string, tenantSlug?: string): Promise<
   const data = await res.json() as { item: ContentDraftRecord }
   return data.item
 }
+
+export async function getContentFileBlobUrl(id: string, tenantSlug?: string): Promise<string> {
+  const res = await fetch(`${presalesBaseUrl()}/api/presales/content/${encodeURIComponent(id)}/download`, {
+    headers: presalesHeaders(tenantSlug),
+  })
+  if (!res.ok) {
+    throw new Error(`Failed to load content file (${res.status})`)
+  }
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
+}
+
+export async function downloadContentFile(id: string, tenantSlug?: string): Promise<void> {
+  const res = await fetch(`${presalesBaseUrl()}/api/presales/content/${encodeURIComponent(id)}/download`, {
+    headers: presalesHeaders(tenantSlug),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(text || `Failed to download content file (${res.status})`)
+  }
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  const filename = match?.[1] ? decodeURIComponent(match[1]) : `content-${id}`
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}

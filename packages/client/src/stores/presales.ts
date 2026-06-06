@@ -10,6 +10,7 @@ import { listKnowledgeFiles, uploadKnowledgeFile } from '@/api/presales/knowledg
 import { listOpportunities } from '@/api/presales/opportunities'
 import {
   createContentDraft as createContentDraftApi,
+  getContentDraft as getContentDraftApi,
   listContentDrafts,
   updateContentDraft as updateContentDraftApi,
 } from '@/api/presales/content'
@@ -158,6 +159,14 @@ export const usePresalesStore = defineStore('presales', () => {
     return contentDrafts.value.find((d) => d.id === id)
   }
 
+  async function loadContentDraft(id: string) {
+    const item = await getContentDraftApi(id, tenantSlug.value ?? undefined)
+    const index = contentDrafts.value.findIndex((d) => d.id === id)
+    if (index >= 0) contentDrafts.value[index] = item
+    else contentDrafts.value.unshift(item)
+    return item
+  }
+
   return {
     opportunities,
     opportunitiesLoading,
@@ -183,5 +192,6 @@ export const usePresalesStore = defineStore('presales', () => {
     finishGenerating,
     saveDraft,
     getDraft,
+    loadContentDraft,
   }
 })

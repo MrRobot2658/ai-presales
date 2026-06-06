@@ -15,7 +15,7 @@ import {
   PRESALES_REL_ROOT,
 } from './presales-profile-paths'
 import { getProfileDir } from '../hermes/hermes-profile'
-import { getProfileKnowledgeRoot } from './knowledge-paths'
+import { getProfileKnowledgeRelRoot, getProfileKnowledgeRoot } from './knowledge-paths'
 import { DEFAULT_PRESALES_OPPORTUNITIES } from './presales-opportunity-seed'
 import { logger } from '../logger'
 
@@ -78,6 +78,7 @@ export function buildPresalesManifest(profileName: string): PresalesManifest {
     apis: {
       opportunities: {
         list: 'GET /api/presales/opportunities',
+        create: 'POST /api/presales/opportunities',
         get: 'GET /api/presales/opportunities/:id',
         update: 'PATCH /api/presales/opportunities/:id',
         profileFile: `${PRESALES_REL_ROOT}/opportunities.json`,
@@ -85,8 +86,8 @@ export function buildPresalesManifest(profileName: string): PresalesManifest {
       knowledge: {
         list: 'GET /api/presales/knowledge',
         upload: 'POST /api/presales/knowledge/upload',
-        rawDirectory: 'knowledge/raw',
-        processedDirectory: 'knowledge/processed',
+        rawDirectory: `${getProfileKnowledgeRelRoot(profileName)}/raw`,
+        processedDirectory: `${getProfileKnowledgeRelRoot(profileName)}/processed`,
       },
       content: {
         list: 'GET /api/presales/content',
@@ -102,8 +103,8 @@ export function buildPresalesManifest(profileName: string): PresalesManifest {
       presalesRoot: rel(getPresalesRoot(profileName)),
       opportunitiesFile: rel(getPresalesOpportunitiesPath(profileName)),
       manifestFile: rel(getPresalesManifestPath(profileName)),
-      knowledgeRaw: 'knowledge/raw',
-      knowledgeProcessed: 'knowledge/processed',
+      knowledgeRaw: `${getProfileKnowledgeRelRoot(profileName)}/raw`,
+      knowledgeProcessed: `${getProfileKnowledgeRelRoot(profileName)}/processed`,
       contentRoot: CONTENT_REL_ROOT,
       contentDrafts: CONTENT_DRAFTS_REL,
       contentPptDefault: CONTENT_PPT_REL,
@@ -113,7 +114,7 @@ export function buildPresalesManifest(profileName: string): PresalesManifest {
     defaults: {
       generatedPptDirectory: CONTENT_PPT_REL,
       generatedWordDirectory: CONTENT_WORD_REL,
-      generatedPptNote: 'Save generated PPT files under content/ppt/{draftId}/ by default.',
+      generatedPptNote: 'Save generated PPT files under content/ppt/ (flat or content/ppt/{draftId}/).',
     },
   }
 }
@@ -157,9 +158,8 @@ export async function ensurePresalesProfileLayout(profileName: string): Promise<
         '',
         '- `manifest.json` — BFF API endpoints and profile directory map',
         '- `opportunities.json` — CRM opportunity list (mirrors `/api/presales/opportunities`)',
-        '- `../content/ppt/` — default output directory for generated PPT files',
-        '- `../content/drafts/` — content draft metadata',
-        '- `../knowledge/processed/` — cleaned knowledge markdown from uploads',
+        '- `../content/ppt/` — generated PPT files (content management default source)',
+        '- `../content/knowledge/processed/` — cleaned knowledge markdown from uploads',
         '',
       ].join('\n'),
       'utf-8',

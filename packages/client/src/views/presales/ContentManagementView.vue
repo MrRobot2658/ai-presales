@@ -1,18 +1,39 @@
 <script setup lang="ts">
 import { h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NDataTable, NTag, type DataTableColumns } from 'naive-ui'
+import { NButton, NDataTable, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import { downloadContentFile } from '@/api/presales/content'
 import { usePresalesStore } from '@/stores/presales'
 import type { ContentDraft } from '@/data/presales-mock'
 
 const { t } = useI18n()
 const router = useRouter()
+const message = useMessage()
 const store = usePresalesStore()
 
 onMounted(() => {
   void store.fetchContentDrafts()
 })
+
+async function handleDownload(row: ContentDraft) {
+  try {
+    await downloadContentFile(row.id, store.tenantSlug ?? undefined)
+  } catch (err: any) {
+    message.error(err?.message || 'Download failed')
+  }
+}
+
+function openEditor(row: ContentDraft) {
+  router.push({ name: 'presales.editor', params: { draftId: row.id } })
+}
+
+function statusType(status: ContentDraft['status']) {
+  if (status === 'completed') return 'success'
+  if (status === 'editing') return 'warning'
+  if (status === 'generating') return 'warning'
+  return 'info'
+}
 
 const columns: DataTableColumns<ContentDraft> = [
   { title: () => t('presales.content.company'), key: 'companyName', minWidth: 160 },
@@ -22,8 +43,7 @@ const columns: DataTableColumns<ContentDraft> = [
     key: 'status',
     width: 110,
     render(row) {
-      const type = row.status === 'completed' ? 'success' : row.status === 'generating' ? 'warning' : 'info'
-      return h(NTag, { size: 'small', type }, () => t(`presales.content.status_${row.status}`))
+      return h(NTag, { size: 'small', type: statusType(row.status) }, () => t(`presales.content.status_${row.status}`))
     },
   },
   {
@@ -37,7 +57,7 @@ const columns: DataTableColumns<ContentDraft> = [
   {
     title: () => t('presales.list.actions'),
     key: 'actions',
-    width: 120,
+    width: 220,
     render(row) {
       if (row.status === 'generating') {
         return h(NButton, {
@@ -45,12 +65,19 @@ const columns: DataTableColumns<ContentDraft> = [
           onClick: () => router.push({ name: 'presales.generating', params: { draftId: row.id } }),
         }, () => t('presales.content.viewProgress'))
       }
-      return h(NButton, {
-        size: 'tiny',
-        type: 'primary',
-        ghost: true,
-        onClick: () => router.push({ name: 'presales.editor', params: { draftId: row.id } }),
-      }, () => t('presales.content.continueEdit'))
+
+      return h('div', { class: 'action-cell' }, [
+        h(NButton, {
+          size: 'tiny',
+          type: 'primary',
+          ghost: true,
+          onClick: () => openEditor(row),
+        }, () => t('presales.content.continueEdit')),
+        h(NButton, {
+          size: 'tiny',
+          onClick: () => { void handleDownload(row) },
+        }, () => t('presales.content.downloadFile')),
+      ])
     },
   },
 ]
@@ -81,5 +108,11 @@ const columns: DataTableColumns<ContentDraft> = [
   margin: -12px 0 16px;
   font-size: 13px;
   color: $text-muted;
+}
+
+:deep(.action-cell) {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 </style>

@@ -37,10 +37,14 @@ export interface ContentDraft {
   scenario: string[]
   knowledgeRefs: string[]
   description: string
-  status: 'generating' | 'draft' | 'completed'
+  status: 'generating' | 'draft' | 'editing' | 'completed'
   updatedAt: string
   htmlContent: string
   sections: { id: string; title: string; content: string }[]
+  outputFile?: string
+  outputFileAbs?: string
+  outputDirectory?: string
+  source?: 'draft' | 'imported'
 }
 
 export const MOCK_OPPORTUNITIES: Opportunity[] = [

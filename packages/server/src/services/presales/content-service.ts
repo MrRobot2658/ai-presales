@@ -1,22 +1,27 @@
-import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
-import { randomUUID } from 'crypto'
+import { basename, extname, join } from 'path'
+import { createHash, randomUUID } from 'crypto'
 import {
+  CONTENT_PPT_REL,
   getContentDraftPath,
   getContentDraftPptDir,
   getContentDraftsRoot,
+  getContentPptRoot,
   toProfileRelPath,
 } from './presales-profile-paths'
 import { ensurePresalesProfileLayout } from './presales-profile-provision'
 import type { PresalesTenantContext } from './tenant-context'
 
-export type ContentDraftStatus = 'generating' | 'draft' | 'completed'
+export type ContentDraftStatus = 'generating' | 'draft' | 'editing' | 'completed'
 
 export interface ContentDraftSection {
   id: string
   title: string
   content: string
 }
+
+export type ContentDraftSource = 'draft' | 'imported'
 
 export interface ContentDraftRecord {
   id: string
@@ -32,6 +37,9 @@ export interface ContentDraftRecord {
   sections: ContentDraftSection[]
   outputDirectory: string
   outputDirectoryAbs: string
+  outputFile?: string
+  outputFileAbs?: string
+  source?: ContentDraftSource
 }
 
 export interface CreateContentDraftInput {
@@ -41,6 +49,8 @@ export interface CreateContentDraftInput {
   knowledgeRefs: string[]
   description: string
 }
+
+const PPT_EXTENSIONS = new Set(['pptx', 'ppt'])
 
 function scenarioLabels(scenario: string[]): string[] {
   return scenario.map((value) => {
@@ -80,12 +90,148 @@ async function writeDraft(profileName: string, draft: ContentDraftRecord): Promi
   await writeFile(path, `${JSON.stringify(draft, null, 2)}\n`, 'utf-8')
 }
 
+function inferCompanyNameFromFilename(filename: string): string {
+  const stem = basename(filename, extname(filename))
+  const cleaned = stem.replace(/[-_]+/g, ' ').trim()
+  return cleaned || 'Imported'
+}
+
+function buildImportDraftId(relPath: string): string {
+  const hash = createHash('sha1').update(relPath).digest('hex').slice(0, 12)
+  return `import-${hash}`
+}
+
+async function walkPptFiles(rootDir: string): Promise<string[]> {
+  if (!existsSync(rootDir)) return []
+  const files: string[] = []
+
+  async function walk(current: string) {
+    const entries = await readdir(current, { withFileTypes: true })
+    for (const entry of entries) {
+      const absPath = join(current, entry.name)
+      if (entry.isDirectory()) {
+        await walk(absPath)
+        continue
+      }
+      const ext = extname(entry.name).replace(/^\./, '').toLowerCase()
+      if (PPT_EXTENSIONS.has(ext)) files.push(absPath)
+    }
+  }
+
+  await walk(rootDir)
+  return files
+}
+
+function collectKnownOutputFiles(drafts: ContentDraftRecord[]): Set<string> {
+  const known = new Set<string>()
+  for (const draft of drafts) {
+    if (draft.outputFile) known.add(draft.outputFile.replace(/\\/g, '/'))
+  }
+  return known
+}
+
+/** Default content source: scan content/ppt/ and mirror into drafts metadata. */
+async function syncProfilePptArtifacts(profileName: string): Promise<void> {
+  const draftsRoot = getContentDraftsRoot(profileName)
+  const existingIds = new Set(await listDraftIds(profileName))
+  const existingDrafts = (await Promise.all(
+    [...existingIds].map((id) => readDraft(profileName, id)),
+  )).filter((draft): draft is ContentDraftRecord => Boolean(draft))
+
+  const knownOutputFiles = collectKnownOutputFiles(existingDrafts)
+  const outputFileToDraftId = new Map<string, string>()
+  for (const draft of existingDrafts) {
+    if (draft.outputFile) outputFileToDraftId.set(draft.outputFile.replace(/\\/g, '/'), draft.id)
+  }
+
+  const pptRoot = getContentPptRoot(profileName)
+  const files = await walkPptFiles(pptRoot)
+
+  for (const absPath of files) {
+    const relPath = toProfileRelPath(profileName, absPath)
+    const fileStat = await stat(absPath)
+    const filename = basename(absPath)
+    const existingDraftId = outputFileToDraftId.get(relPath)
+
+    if (existingDraftId) {
+      const existing = existingDrafts.find((draft) => draft.id === existingDraftId)
+      if (existing && existing.updatedAt !== fileStat.mtime.toISOString()) {
+        await writeDraft(profileName, {
+          ...existing,
+          updatedAt: fileStat.mtime.toISOString(),
+          title: filename,
+        })
+      }
+      continue
+    }
+
+    if (knownOutputFiles.has(relPath)) continue
+
+    const draftId = buildImportDraftId(relPath)
+    if (existingIds.has(draftId)) continue
+
+    const draft: ContentDraftRecord = {
+      id: draftId,
+      opportunityId: '',
+      companyName: inferCompanyNameFromFilename(filename),
+      title: filename,
+      scenario: ['product-ppt'],
+      knowledgeRefs: [],
+      description: 'Imported from content/ppt',
+      status: 'completed',
+      updatedAt: fileStat.mtime.toISOString(),
+      htmlContent: '',
+      sections: [],
+      outputDirectory: CONTENT_PPT_REL,
+      outputDirectoryAbs: pptRoot,
+      outputFile: relPath,
+      outputFileAbs: absPath,
+      source: 'imported',
+    }
+
+    await mkdir(draftsRoot, { recursive: true })
+    await writeDraft(profileName, draft)
+    existingIds.add(draftId)
+    knownOutputFiles.add(relPath)
+  }
+}
+
+export async function getContentArtifactPath(
+  tenant: PresalesTenantContext,
+  draftId: string,
+): Promise<{ absPath: string; filename: string } | null> {
+  await ensurePresalesProfileLayout(tenant.hermesProfileName)
+  const draft = await readDraft(tenant.hermesProfileName, draftId)
+  if (draft?.outputFileAbs && existsSync(draft.outputFileAbs)) {
+    return { absPath: draft.outputFileAbs, filename: basename(draft.outputFileAbs) }
+  }
+
+  const pptRoot = getContentPptRoot(tenant.hermesProfileName)
+  const files = await walkPptFiles(pptRoot)
+  for (const absPath of files) {
+    if (buildImportDraftId(toProfileRelPath(tenant.hermesProfileName, absPath)) === draftId) {
+      return { absPath, filename: basename(absPath) }
+    }
+  }
+
+  return null
+}
+
 export async function listContentDrafts(tenant: PresalesTenantContext): Promise<ContentDraftRecord[]> {
   await ensurePresalesProfileLayout(tenant.hermesProfileName)
+  await syncProfilePptArtifacts(tenant.hermesProfileName)
+
   const ids = await listDraftIds(tenant.hermesProfileName)
   const drafts = await Promise.all(ids.map((id) => readDraft(tenant.hermesProfileName, id)))
+
   return drafts
     .filter((draft): draft is ContentDraftRecord => Boolean(draft))
+    .filter((draft) => {
+      if (draft.source === 'imported' || draft.status === 'completed' || draft.status === 'editing') {
+        return Boolean(draft.outputFile?.startsWith(`${CONTENT_PPT_REL}/`))
+      }
+      return draft.status === 'generating' || draft.status === 'draft'
+    })
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 }
 
@@ -94,6 +240,7 @@ export async function getContentDraft(
   draftId: string,
 ): Promise<ContentDraftRecord | null> {
   await ensurePresalesProfileLayout(tenant.hermesProfileName)
+  await syncProfilePptArtifacts(tenant.hermesProfileName)
   return readDraft(tenant.hermesProfileName, draftId)
 }
 
@@ -126,6 +273,7 @@ export async function createContentDraft(
     ],
     outputDirectory: toProfileRelPath(profileName, outputDirectoryAbs),
     outputDirectoryAbs,
+    source: 'draft',
   }
 
   await writeDraft(profileName, draft)
@@ -135,7 +283,7 @@ export async function createContentDraft(
 export async function updateContentDraft(
   tenant: PresalesTenantContext,
   draftId: string,
-  patch: Partial<Pick<ContentDraftRecord, 'status' | 'htmlContent' | 'sections' | 'title'>>,
+  patch: Partial<Pick<ContentDraftRecord, 'status' | 'htmlContent' | 'sections' | 'title' | 'outputFile' | 'outputFileAbs'>>,
 ): Promise<ContentDraftRecord | null> {
   const current = await getContentDraft(tenant, draftId)
   if (!current) return null

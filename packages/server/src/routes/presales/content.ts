@@ -6,5 +6,6 @@ export const presalesContentRoutes = new Router()
 
 presalesContentRoutes.get('/api/presales/content', requirePresalesTenant, ctrl.list)
 presalesContentRoutes.post('/api/presales/content', requirePresalesTenant, ctrl.create)
+presalesContentRoutes.get('/api/presales/content/:id/download', requirePresalesTenant, ctrl.download)
 presalesContentRoutes.get('/api/presales/content/:id', requirePresalesTenant, ctrl.get)
 presalesContentRoutes.patch('/api/presales/content/:id', requirePresalesTenant, ctrl.patch)
