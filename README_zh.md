@@ -1,10 +1,11 @@
 <p align="center">
-  <strong>Hermes Web UI</strong>
+  <strong>Hermes Web UI</strong> · <strong>aipresales</strong><br/>
   <a href="./README.md">English</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a> 的全功能桌面应用和 Web 管理面板。<br/>
+  本仓库在 Hermes Web UI 基础上扩展了 <strong>aipresales</strong> 售前 CRM（商机、知识库、内容管理）。<br/>
   管理 AI 聊天会话、监控用量与成本、配置平台渠道、<br/>
   管理定时任务、浏览技能 —— 全部在一个简洁响应式的 Web 界面中完成。
 </p>
@@ -177,6 +178,59 @@ hermes-web-ui reset-default-login
 - 通过 WebSocket 实时传输键盘输入和 PTY 输出
 - 支持窗口大小调整
 
+### aipresales 售前 CRM
+
+构建时设置 `VITE_HERMES_PRESALES_MODE=1`（见 `.env.example`）。界面品牌为 **aipresales**，隐藏 Hermes 主导航，展示售前模块：
+
+| 模块 | 说明 |
+| --- | --- |
+| **商机概览** | 总览 KPI、AI 匹配排行、行业/地域分布 |
+| **商机列表** | CRM 线索、AI 匹配洞察、方案生成入口 |
+| **知识库** | 上传文档，后台 Agent 自动清洗 |
+| **内容管理** | 默认读取 `content/ppt/` 下 PPT，支持下载与 Hermes 二次编辑 |
+
+**Docker 服务**（详见 [`docs/docker.md`](./docs/docker.md)）：
+
+| 服务 | 作用 |
+| --- | --- |
+| `hermes-webui` | Web UI + Hermes Agent + BFF API |
+| `postgres` | 知识库元数据、租户 |
+| `redis` | BullMQ 清洗队列 |
+| `presales-worker` | 后台 Agent 清洗任务 |
+
+**租户模型：** 1 租户 = 1 Hermes Profile = N 个 Web UI 账号。BFF 通过 `tenant_accounts` 解析租户，并在售前 API 上设置 `X-Hermes-Profile`。
+
+**Profile 目录结构**（`~/.hermes/profiles/{profile}/`）：
+
+```text
+presales/
+  manifest.json          # Agent 可读的 API 与目录映射
+  opportunities.json     # 商机列表（商机数据源）
+content/
+  ppt/                   # 生成的 PPT（内容管理默认扫描目录）
+  word/
+  drafts/                # 草稿元数据
+  knowledge/
+    raw/{assetId}/       # 上传原始文件
+    processed/{assetId}/ # Agent 清洗后的 Markdown
+skills/presales/         # 内置 Skill：指导 Agent 调用售前 API
+```
+
+**售前 BFF API**（JWT + `X-Hermes-Profile`）：
+
+| 模块 | 接口 |
+| --- | --- |
+| 商机 | `GET/POST /api/presales/opportunities`，`GET/PATCH /api/presales/opportunities/:id` |
+| 知识库 | `GET /api/presales/knowledge`，`POST /api/presales/knowledge/upload` |
+| 内容 | `GET/POST /api/presales/content`，`GET/PATCH /api/presales/content/:id`，`GET .../download` |
+| Profile 配置 | `GET /api/presales/profile-manifest` |
+
+**知识库流程：** 上传 → 写入 PostgreSQL + 磁盘 → Redis 入队 → `presales-worker` 经 Agent Bridge 清洗 → 生成 `cleaned.md` 与分块 → 状态 `ready`。前端对 `processing` 项每 3 秒轮询。
+
+**内容管理流程：** 扫描 `content/ppt/` 展示 PPT（含 Agent 直接写入的文件）。**继续编辑** 打开文件并调用 Hermes `/chat-run` 进行二次编辑，文件层显示「编辑中」遮罩，右侧面板可继续下达修改指令。
+
+设计文档：[`docs/presales/knowledge-base-schema.md`](./docs/presales/knowledge-base-schema.md)、[`docs/presales/tenant-schema.md`](./docs/presales/tenant-schema.md)。
+
 ---
 
 ## 快速开始
@@ -206,7 +260,7 @@ hermes-web-ui start
 
 ### Docker Compose
 
-单容器部署，内置 Hermes Agent 运行时：
+多服务部署，内置 Hermes Agent 与 aipresales 售前栈：
 
 ```bash
 cp .env.example .env          # 可选；默认使用预构建镜像
@@ -217,9 +271,12 @@ npm run docker:logs           # 查看日志（首次启动可看到登录 token
 
 打开 **http://localhost:6060**
 
+- 服务：`hermes-webui`、`postgres`、`redis`、`presales-worker`
 - Hermes 持久化数据：`./hermes_data`
 - 认证 Token：`./hermes_data/hermes-web-ui/.token`
 - 运行参数：`.env` / `docker-compose.yml`
+
+代码变更后需重新构建并将 `dist/` 复制进容器（见 [`docs/docker.md`](./docs/docker.md)），或重新构建镜像。
 
 端口、环境变量与排错见：[`docs/docker.md`](./docs/docker.md)
 
@@ -283,6 +340,11 @@ Web UI 启动后端聊天能力时，会优先使用包含 `run_agent.py` 的源
 | `HERMES_WEB_UI_PREVIEW_AGENT_BRIDGE_ENDPOINT` | 隔离的预览 endpoint | 直接覆盖 Version Preview 的 broker endpoint。 |
 | `HERMES_WEB_UI_BACKEND_PORT` | `8648` | Vite dev proxy 使用的后端端口。 |
 | `HERMES_WEB_UI_FRONTEND_PORT` | `8649` | 前端 Vite dev server 端口。 |
+| `DATABASE_URL` | 未设置 | 售前 API 使用的 PostgreSQL 连接串。 |
+| `REDIS_URL` | 未设置 | 知识库清洗队列（BullMQ）使用的 Redis URL。 |
+| `PRESALES_BFF_BASE_URL` | `http://127.0.0.1:${PORT}` | 写入 Profile `presales/manifest.json` 的 BFF 基址。 |
+| `VITE_HERMES_PRESALES_MODE` | `0` | 构建时：启用 aipresales 售前 UI 并隐藏 Hermes 主导航。 |
+| `VITE_HERMES_PRODUCT_NAME` | `Hermes Web UI` | UI 产品名称（如 `aipresales`）。 |
 
 ### CLI 命令
 

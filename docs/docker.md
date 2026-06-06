@@ -118,7 +118,7 @@ No Hermes gateway ports are published by this compose file.
 | `${HERMES_DATA_DIR}/hermes-web-ui` | `/home/agent/.hermes-web-ui` | Web UI auth token, Web UI state |
 | `${PG_DATA_DIR}` | `/var/lib/postgresql/data` | PostgreSQL data (knowledge metadata) |
 
-Knowledge base **files** (PDF/PPT/DOCX) will live under `${HERMES_DATA_DIR}/hermes-web-ui/knowledge/` once the presales API is implemented; **metadata** lives in Postgres. See [presales/knowledge-base-schema.md](./presales/knowledge-base-schema.md).
+Knowledge base **files** (PDF/PPT/DOCX) live under `${HERMES_DATA_DIR}/profiles/{profile}/content/knowledge/raw/{assetId}/` (processed output in `.../processed/{assetId}/`); **metadata** lives in Postgres. See [presales/knowledge-base-schema.md](./presales/knowledge-base-schema.md).
 
 - Auth token is created on first run and printed to logs.
 - Delete `./hermes_data/hermes-web-ui/.token` and restart to rotate the token.

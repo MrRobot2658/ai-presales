@@ -1,10 +1,11 @@
 <p align="center">
-  <strong>Hermes Web UI</strong>
+  <strong>Hermes Web UI</strong> · <strong>aipresales</strong><br/>
   <a href="./README_zh.md">中文</a>
 </p>
 
 <p align="center">
   A full-featured desktop app and web dashboard for <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a>.<br/>
+  This fork adds the <strong>aipresales</strong> presales CRM module (opportunities, knowledge base, content management).<br/>
   Manage AI chat sessions, monitor usage & costs, configure platform channels,<br/>
   schedule cron jobs, browse skills — all from a clean, responsive web interface.
 </p>
@@ -169,6 +170,59 @@ hermes-web-ui reset-default-login
 - Real-time keyboard input and PTY output streaming via WebSocket
 - Window resize support
 
+### aipresales Presales CRM
+
+Enable with `VITE_HERMES_PRESALES_MODE=1` at build time (see `.env.example`). The UI is rebranded to **aipresales**, Hermes sidebar groups are hidden, and the main navigation shows:
+
+| Module | Description |
+| --- | --- |
+| **Opportunity Overview** | KPI cards, AI match ranking, industry/region stats |
+| **Opportunity List** | CRM leads with AI match insight and plan generation entry |
+| **Knowledge Base** | Upload documents; Agent cleans them in the background |
+| **Content Management** | Lists PPT files under `content/ppt/`; download and re-edit via Hermes |
+
+**Docker stack** (see [`docs/docker.md`](./docs/docker.md)):
+
+| Service | Role |
+| --- | --- |
+| `hermes-webui` | Web UI + Hermes Agent + BFF APIs |
+| `postgres` | Knowledge metadata, tenants |
+| `redis` | BullMQ ingest queue |
+| `presales-worker` | Background Agent cleaning jobs |
+
+**Tenant model:** one tenant → one Hermes profile → N Web UI accounts. The BFF resolves tenant context from `tenant_accounts` and sets `X-Hermes-Profile` on presales APIs.
+
+**Profile layout** (under `~/.hermes/profiles/{profile}/`):
+
+```text
+presales/
+  manifest.json          # API endpoints + directory map for the Agent
+  opportunities.json     # CRM opportunity list (source of truth for 商机)
+content/
+  ppt/                   # Generated PPTs (content management default source)
+  word/
+  drafts/                # Draft metadata JSON
+  knowledge/
+    raw/{assetId}/       # Uploaded files
+    processed/{assetId}/ # Agent-cleaned markdown
+skills/presales/         # Bundled skill: how Agent reads presales APIs
+```
+
+**Presales BFF APIs** (JWT + `X-Hermes-Profile`):
+
+| Area | Endpoints |
+| --- | --- |
+| Opportunities | `GET/POST /api/presales/opportunities`, `GET/PATCH /api/presales/opportunities/:id` |
+| Knowledge | `GET /api/presales/knowledge`, `POST /api/presales/knowledge/upload` |
+| Content | `GET/POST /api/presales/content`, `GET/PATCH /api/presales/content/:id`, `GET .../download` |
+| Profile manifest | `GET /api/presales/profile-manifest` |
+
+**Knowledge ingest flow:** upload → PostgreSQL row + file on disk → Redis queue → `presales-worker` calls Hermes Agent bridge → writes `cleaned.md` + chunks → status `ready`. Frontend polls every 3s while any item is `processing`.
+
+**Content management flow:** lists files scanned from `content/ppt/` (including Agent-dropped PPTs). **Continue editing** opens the file, overlays **Editing…** while Hermes chat runs (`/chat-run`), and supports follow-up edit instructions in the side panel.
+
+Schema and design docs: [`docs/presales/knowledge-base-schema.md`](./docs/presales/knowledge-base-schema.md), [`docs/presales/tenant-schema.md`](./docs/presales/tenant-schema.md).
+
 ---
 
 ## Quick Start
@@ -199,7 +253,7 @@ Open **http://localhost:8648**
 
 ### Docker Compose
 
-Single-container deployment with integrated Hermes Agent:
+Multi-service deployment with integrated Hermes Agent and aipresales presales stack:
 
 ```bash
 cp .env.example .env          # optional; pre-built image is the default
@@ -210,9 +264,12 @@ npm run docker:logs           # follow logs (auth token on first run)
 
 Open **http://localhost:6060**
 
+- Services: `hermes-webui`, `postgres`, `redis`, `presales-worker`
 - Persistent Hermes data: `./hermes_data`
 - Auth token: `./hermes_data/hermes-web-ui/.token`
 - All settings: `.env` / `docker-compose.yml`
+
+After code changes, rebuild and copy artifacts into the running container (see [`docs/docker.md`](./docs/docker.md)) or rebuild the image.
 
 See [`docs/docker.md`](./docs/docker.md) for ports, variables, and troubleshooting.
 
@@ -277,6 +334,11 @@ These variables configure Hermes Web UI, its local Hermes runtime integration, a
 | `HERMES_WEB_UI_PREVIEW_AGENT_BRIDGE_ENDPOINT` | isolated preview endpoint | Directly overrides the Version Preview broker endpoint. |
 | `HERMES_WEB_UI_BACKEND_PORT` | `8648` | Backend port used by the Vite dev proxy. |
 | `HERMES_WEB_UI_FRONTEND_PORT` | `8649` | Frontend Vite dev server port. |
+| `DATABASE_URL` | unset | PostgreSQL connection string for presales APIs. |
+| `REDIS_URL` | unset | Redis URL for knowledge ingest queue (BullMQ). |
+| `PRESALES_BFF_BASE_URL` | `http://127.0.0.1:${PORT}` | Base URL written into profile `presales/manifest.json`. |
+| `VITE_HERMES_PRESALES_MODE` | `0` | Build-time: enable aipresales presales UI and hide Hermes nav groups. |
+| `VITE_HERMES_PRODUCT_NAME` | `Hermes Web UI` | Product name in the UI (e.g. `aipresales`). |
 
 ### CLI Commands
 
