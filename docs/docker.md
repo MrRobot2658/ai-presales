@@ -62,7 +62,10 @@ docker compose logs hermes-webui | grep -i token
 
 | Service | Description |
 |---|---|
+| `postgres` | PostgreSQL 16 for presales knowledge base metadata |
+| `redis` | Redis 7 for presales knowledge ingest queue (BullMQ) |
 | `hermes-webui` | Web UI + Hermes Agent (from pre-built image or local build) |
+| `presales-worker` | Background worker: Agent cleans uploaded knowledge files |
 
 Built on `nousresearch/hermes-agent`. Web UI performs startup gateway checks for profiles; this compose file does **not** expose Hermes gateway ports.
 
@@ -79,6 +82,12 @@ Set in `.env` or the shell. Compose passes them into the container where noted.
 | `BIND_HOST` | `0.0.0.0` | Container | Web UI bind address (`::` for IPv6) |
 | `HERMES_BIN` | `/opt/hermes/.venv/bin/hermes` | Container | Hermes CLI path |
 | `HERMES_DATA_DIR` | `./hermes_data` | Host | Persistent data mount |
+| `POSTGRES_USER` | `aipresales` | Postgres | Database user |
+| `POSTGRES_PASSWORD` | `aipresales` | Postgres | Database password (change in production) |
+| `POSTGRES_DB` | `aipresales` | Postgres | Database name |
+| `POSTGRES_PORT` | `5432` | Host | Postgres host mapping |
+| `PG_DATA_DIR` | `./pg_data` | Host | Postgres data volume |
+| `DATABASE_URL` | see `.env.example` | Container | Web UI BFF connection string (when PG client is wired) |
 | `PREVIEW_FRONTEND_PORT` | `8651` | Host | In-app update preview (Vite) |
 | `XAI_OAUTH_PORT` | `56121` | Host | xAI OAuth callback |
 
@@ -94,6 +103,8 @@ HERMES_DATA_DIR=/data/hermes docker compose up -d
 | Port | Description |
 |---|---|
 | `${PORT}` (6060) | Web UI dashboard |
+| `${POSTGRES_PORT}` (5432) | PostgreSQL (presales knowledge base) |
+| `${REDIS_PORT}` (6380) | Redis (presales ingest queue; default 6380 if 6379 is taken) |
 | 8651 | Update preview frontend (optional feature) |
 | 56121 | xAI OAuth redirect callback |
 
@@ -105,6 +116,9 @@ No Hermes gateway ports are published by this compose file.
 |---|---|---|
 | `${HERMES_DATA_DIR}` | `/home/agent/.hermes` | Hermes sessions, profiles, config |
 | `${HERMES_DATA_DIR}/hermes-web-ui` | `/home/agent/.hermes-web-ui` | Web UI auth token, Web UI state |
+| `${PG_DATA_DIR}` | `/var/lib/postgresql/data` | PostgreSQL data (knowledge metadata) |
+
+Knowledge base **files** (PDF/PPT/DOCX) will live under `${HERMES_DATA_DIR}/hermes-web-ui/knowledge/` once the presales API is implemented; **metadata** lives in Postgres. See [presales/knowledge-base-schema.md](./presales/knowledge-base-schema.md).
 
 - Auth token is created on first run and printed to logs.
 - Delete `./hermes_data/hermes-web-ui/.token` and restart to rotate the token.

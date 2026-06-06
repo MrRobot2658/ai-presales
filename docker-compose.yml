@@ -1,4 +1,42 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${PG_CONTAINER_NAME:-hermes-pg}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aipresales}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aipresales}
+      POSTGRES_DB: ${POSTGRES_DB:-aipresales}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ${PG_DATA_DIR:-./pg_data}:/var/lib/postgresql/data
+      - ./packages/server/src/db/postgres/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-aipresales} -d ${POSTGRES_DB:-aipresales}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${REDIS_CONTAINER_NAME:-hermes-redis}
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - ${REDIS_DATA_DIR:-./redis_data}:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   hermes-webui:
     build:
       context: .
@@ -24,6 +62,19 @@ services:
       - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       - HERMES_ALLOW_ROOT_GATEWAY=1
       - HERMES_OPENROUTER_APP_TITLE=${HERMES_OPENROUTER_APP_TITLE:-aipresales}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://aipresales:aipresales@postgres:5432/aipresales}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-aipresales}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aipresales}
+      - POSTGRES_DB=${POSTGRES_DB:-aipresales}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      # Broker must bind 0.0.0.0 inside the container; do not use the worker hostname here.
+      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://0.0.0.0:18765
+      - HERMES_AGENT_BRIDGE_WORKER_TRANSPORT=tcp
+      - HERMES_WEB_UI_HOME=/home/agent/.hermes-web-ui
+    expose:
+      - "18765"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${PORT:-6060}/health"]
       interval: 30s
@@ -31,5 +82,38 @@ services:
       retries: 3
       start_period: 60s
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     stdin_open: true
     tty: true
+
+  presales-worker:
+    image: ${WEBUI_IMAGE:-hermes-web-ui-local:latest}
+    container_name: ${PRESALES_WORKER_CONTAINER_NAME:-hermes-presales-worker}
+    entrypoint: ["node"]
+    command: ["dist/server/workers/presales-knowledge-worker.js"]
+    volumes:
+      - ${HERMES_DATA_DIR:-./hermes_data}:/home/agent/.hermes
+      - ${HERMES_DATA_DIR:-./hermes_data}/hermes-web-ui:/home/agent/.hermes-web-ui
+      - ./dist/server/workers/presales-knowledge-worker.js:/app/dist/server/workers/presales-knowledge-worker.js:ro
+    environment:
+      - HERMES_HOME=/home/agent/.hermes
+      - HERMES_BIN=${HERMES_BIN:-/opt/hermes/.venv/bin/hermes}
+      - HERMES_WEB_UI_HOME=/home/agent/.hermes-web-ui
+      # Worker connects to the webui broker over the compose network.
+      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://hermes-webui:18765
+      - DATABASE_URL=${DATABASE_URL:-postgresql://aipresales:aipresales@postgres:5432/aipresales}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - PRESALES_WORKER_CONCURRENCY=${PRESALES_WORKER_CONCURRENCY:-1}
+      - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      hermes-webui:
+        condition: service_healthy
+    restart: unless-stopped

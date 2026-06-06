@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { h, ref } from 'vue'
-import { NButton, NDataTable, NModal, NInput, NUpload, NTag, useMessage, type DataTableColumns } from 'naive-ui'
+import { h, onMounted, onUnmounted, ref } from 'vue'
+import { NButton, NDataTable, NModal, NInput, NUpload, NTag, useMessage, type DataTableColumns, type UploadFileInfo } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { usePresalesStore } from '@/stores/presales'
 import type { KnowledgeFile } from '@/data/presales-mock'
@@ -10,9 +10,10 @@ const message = useMessage()
 const store = usePresalesStore()
 
 const showUpload = ref(false)
+const selectedFile = ref<File | null>(null)
 const fileName = ref('')
-const fileType = ref('PDF')
 const cleanRequirement = ref('')
+const submitting = ref(false)
 
 const columns: DataTableColumns<KnowledgeFile> = [
   { title: () => t('presales.knowledge.fileName'), key: 'fileName', minWidth: 220 },
@@ -23,43 +24,55 @@ const columns: DataTableColumns<KnowledgeFile> = [
     key: 'status',
     width: 100,
     render(row) {
-      const type = row.status === 'ready' ? 'success' : row.status === 'reviewing' ? 'warning' : 'error'
-      return h(NTag, { size: 'small', type }, () => t(`presales.knowledge.status_${row.status}`))
-    },
-  },
-  {
-    title: () => t('presales.knowledge.eta'),
-    key: 'eta',
-    width: 160,
-    render(row) {
-      return row.eta || '-'
+      const type = row.status === 'ready' ? 'success' : row.status === 'processing' ? 'info' : 'error'
+      const key = row.status === 'processing' ? 'status_processing' : `status_${row.status}`
+      return h(NTag, { size: 'small', type }, () => t(`presales.knowledge.${key}`))
     },
   },
 ]
 
+onMounted(async () => {
+  try {
+    await store.fetchKnowledgeFiles()
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : t('presales.knowledge.loadFailed'))
+  }
+})
+
+onUnmounted(() => {
+  store.stopKnowledgePolling()
+})
+
 function openUpload() {
+  selectedFile.value = null
   fileName.value = ''
-  fileType.value = 'PDF'
   cleanRequirement.value = ''
   showUpload.value = true
 }
 
-function handleUploadChange(options: { file: { name?: string } }) {
-  if (options.file.name) {
-    fileName.value = options.file.name
-    const ext = options.file.name.split('.').pop()?.toUpperCase()
-    if (ext) fileType.value = ext
+function handleUploadChange(options: { file: UploadFileInfo }) {
+  const raw = options.file.file
+  if (raw) {
+    selectedFile.value = raw
+    fileName.value = raw.name
   }
 }
 
-function submitTicket() {
-  if (!fileName.value.trim()) {
+async function submitTicket() {
+  if (!selectedFile.value) {
     message.warning(t('presales.knowledge.fileRequired'))
     return
   }
-  store.submitKnowledgeTicket(fileName.value.trim(), fileType.value, cleanRequirement.value.trim())
-  message.success(t('presales.knowledge.submitted'))
-  showUpload.value = false
+  submitting.value = true
+  try {
+    await store.submitKnowledgeTicket(selectedFile.value, cleanRequirement.value.trim())
+    message.success(t('presales.knowledge.submitted'))
+    showUpload.value = false
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : t('presales.knowledge.uploadFailed'))
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -70,7 +83,13 @@ function submitTicket() {
       <NButton type="primary" @click="openUpload">{{ t('presales.knowledge.upload') }}</NButton>
     </header>
 
-    <NDataTable :columns="columns" :data="store.knowledgeFiles" :bordered="false" size="small" />
+    <NDataTable
+      :columns="columns"
+      :data="store.knowledgeFiles"
+      :loading="store.knowledgeLoading"
+      :bordered="false"
+      size="small"
+    />
 
     <NModal v-model:show="showUpload" preset="card" :title="t('presales.knowledge.uploadTitle')" style="width: min(520px, 96vw);">
       <div class="upload-form">
@@ -81,7 +100,9 @@ function submitTicket() {
         <label>{{ t('presales.knowledge.cleanRequirement') }}</label>
         <NInput v-model:value="cleanRequirement" type="textarea" :rows="4" :placeholder="t('presales.knowledge.cleanPlaceholder')" />
         <p class="eta-hint">{{ t('presales.knowledge.etaHint') }}</p>
-        <NButton type="primary" block @click="submitTicket">{{ t('presales.knowledge.submitTicket') }}</NButton>
+        <NButton type="primary" block :loading="submitting" @click="submitTicket">
+          {{ t('presales.knowledge.submitTicket') }}
+        </NButton>
       </div>
     </NModal>
   </div>

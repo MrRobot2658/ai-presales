@@ -36,6 +36,22 @@ cpSync(
 )
 chmodSync(resolve(bridgeOutDir, 'hermes_bridge.py'), 0o755)
 
+const workerOutDir = resolve(serverOutDir, 'workers')
+mkdirSync(workerOutDir, { recursive: true })
+await esbuild.build({
+  entryPoints: [resolve(rootDir, 'packages/server/src/workers/presales-knowledge-worker.ts')],
+  bundle: true,
+  platform: 'node',
+  target: 'node23',
+  format: 'cjs',
+  outfile: resolve(workerOutDir, 'presales-knowledge-worker.js'),
+  external: ['node-pty', 'node:sqlite', 'socket.io'],
+  sourcemap: true,
+  minify: true,
+  treeShaking: true,
+  logLevel: 'info',
+})
+
 const skillsOutDir = resolve(rootDir, 'dist/skills')
 rmSync(skillsOutDir, { recursive: true, force: true })
 cpSync(

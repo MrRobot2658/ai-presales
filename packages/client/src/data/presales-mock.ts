@@ -24,7 +24,7 @@ export interface KnowledgeFile {
   fileName: string
   fileType: string
   uploadedAt: string
-  status: 'ready' | 'reviewing' | 'failed'
+  status: 'ready' | 'processing' | 'failed'
   cleanRequirement?: string
   eta?: string
 }

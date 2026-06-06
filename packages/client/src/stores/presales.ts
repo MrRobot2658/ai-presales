@@ -1,15 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import {
-  MOCK_KNOWLEDGE_FILES,
   MOCK_OPPORTUNITIES,
   type ContentDraft,
   type KnowledgeFile,
   type Opportunity,
 } from '@/data/presales-mock'
+import { listKnowledgeFiles, uploadKnowledgeFile } from '@/api/presales/knowledge'
 
 const DRAFTS_KEY = 'aipresales.content.drafts'
-const KNOWLEDGE_KEY = 'aipresales.knowledge.files'
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -30,8 +29,37 @@ function defaultDraftHtml(companyName: string, scenarios: string[]): string {
 
 export const usePresalesStore = defineStore('presales', () => {
   const opportunities = ref<Opportunity[]>([...MOCK_OPPORTUNITIES])
-  const knowledgeFiles = ref<KnowledgeFile[]>(loadJson(KNOWLEDGE_KEY, MOCK_KNOWLEDGE_FILES))
+  const knowledgeFiles = ref<KnowledgeFile[]>([])
+  const knowledgeLoading = ref(false)
+  const knowledgeTenantSlug = ref<string | null>(null)
   const drafts = ref<ContentDraft[]>(loadJson(DRAFTS_KEY, []))
+  let knowledgePollTimer: ReturnType<typeof setInterval> | null = null
+
+  function hasProcessingKnowledge() {
+    return knowledgeFiles.value.some((item) => item.status === 'processing')
+  }
+
+  function stopKnowledgePolling() {
+    if (knowledgePollTimer) {
+      clearInterval(knowledgePollTimer)
+      knowledgePollTimer = null
+    }
+  }
+
+  function startKnowledgePolling() {
+    if (knowledgePollTimer) return
+    knowledgePollTimer = setInterval(async () => {
+      if (!hasProcessingKnowledge()) {
+        stopKnowledgePolling()
+        return
+      }
+      try {
+        await fetchKnowledgeFiles(knowledgeTenantSlug.value ?? undefined, { silent: true })
+      } catch {
+        // keep polling; user can refresh manually
+      }
+    }, 3000)
+  }
 
   const totalCount = computed(() => opportunities.value.length)
   const newThisMonth = computed(() =>
@@ -48,28 +76,34 @@ export const usePresalesStore = defineStore('presales', () => {
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts.value))
   }
 
-  function persistKnowledge() {
-    localStorage.setItem(KNOWLEDGE_KEY, JSON.stringify(knowledgeFiles.value))
+  const knowledgeOptions = computed(() =>
+    knowledgeFiles.value
+      .filter((item) => item.status === 'ready')
+      .map((item) => ({ label: item.fileName, value: item.id })),
+  )
+
+  async function fetchKnowledgeFiles(tenantSlug?: string, options?: { silent?: boolean }) {
+    if (!options?.silent) knowledgeLoading.value = true
+    try {
+      const response = await listKnowledgeFiles(tenantSlug)
+      knowledgeFiles.value = response.items
+      knowledgeTenantSlug.value = response.tenant.slug
+      if (hasProcessingKnowledge()) startKnowledgePolling()
+      else stopKnowledgePolling()
+    } finally {
+      if (!options?.silent) knowledgeLoading.value = false
+    }
+  }
+
+  async function submitKnowledgeTicket(file: File, cleanRequirement: string, tenantSlug?: string) {
+    const item = await uploadKnowledgeFile(file, cleanRequirement, tenantSlug ?? knowledgeTenantSlug.value ?? undefined)
+    knowledgeFiles.value.unshift(item)
+    if (item.status === 'processing') startKnowledgePolling()
+    return item
   }
 
   function getOpportunity(id: string) {
     return opportunities.value.find((o) => o.id === id)
-  }
-
-  function submitKnowledgeTicket(fileName: string, fileType: string, cleanRequirement: string) {
-    const eta = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-    const item: KnowledgeFile = {
-      id: `kb-${Date.now()}`,
-      fileName,
-      fileType,
-      uploadedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
-      status: 'reviewing',
-      cleanRequirement,
-      eta: eta.toLocaleString('zh-CN', { hour12: false }),
-    }
-    knowledgeFiles.value.unshift(item)
-    persistKnowledge()
-    return item
   }
 
   function createDraft(payload: {
@@ -133,12 +167,17 @@ export const usePresalesStore = defineStore('presales', () => {
   return {
     opportunities,
     knowledgeFiles,
+    knowledgeLoading,
+    knowledgeOptions,
+    knowledgeTenantSlug,
     drafts,
     totalCount,
     newThisMonth,
     inProgressCount,
     rankingTop5,
     getOpportunity,
+    fetchKnowledgeFiles,
+    stopKnowledgePolling,
     submitKnowledgeTicket,
     createDraft,
     finishGenerating,

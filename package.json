@@ -71,11 +71,14 @@
   ],
   "dependencies": {
     "@vscode/markdown-it-katex": "^1.1.2",
+    "bullmq": "^5.78.0",
     "eventsource": "^4.1.0",
+    "ioredis": "^5.11.1",
     "js-tiktoken": "^1.0.21",
     "katex": "^0.17.0",
     "node-edge-tts": "^1.2.10",
     "node-pty": "^1.1.0",
+    "pg": "^8.21.0",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   },
@@ -96,6 +99,7 @@
     "@types/koa-static": "^4.0.4",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.12.2",
+    "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-vue": "^6.0.5",

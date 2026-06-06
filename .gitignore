@@ -33,6 +33,8 @@ packages/desktop/node_modules/
 config.yaml
 .env
 hermes_data/
+pg_data/
+redis_data/
 hermes-dependencies.md
 # Editor directories and files
 .vscode/*

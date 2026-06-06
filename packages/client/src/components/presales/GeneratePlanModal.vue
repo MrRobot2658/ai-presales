@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NModal, NSelect, NCheckboxGroup, NCheckbox, NInput, NButton } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { KNOWLEDGE_OPTIONS, SCENARIO_OPTIONS } from '@/data/presales-mock'
+import { SCENARIO_OPTIONS } from '@/data/presales-mock'
 import { usePresalesStore } from '@/stores/presales'
 import type { Opportunity } from '@/data/presales-mock'
 
@@ -24,7 +24,7 @@ const description = ref('')
 
 watch(() => props.show, (open) => {
   if (open) {
-    knowledgeRefs.value = ['kb-1']
+    knowledgeRefs.value = store.knowledgeOptions[0]?.value ? [store.knowledgeOptions[0].value] : []
     scenario.value = ['bid-word']
     description.value = ''
   }
@@ -54,7 +54,7 @@ function handleGenerate() {
   >
     <div class="form">
       <label>{{ t('presales.generate.knowledge') }}</label>
-      <NSelect v-model:value="knowledgeRefs" multiple :options="KNOWLEDGE_OPTIONS" />
+      <NSelect v-model:value="knowledgeRefs" multiple :options="store.knowledgeOptions" />
 
       <label>{{ t('presales.generate.scenario') }}</label>
       <NCheckboxGroup v-model:value="scenario">
