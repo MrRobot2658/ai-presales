@@ -28,8 +28,10 @@ function priorityType(p: string) {
 
 <template>
   <div class="presales-page">
-    <header class="page-header">
+    <header class="page-hero">
+      <span class="page-eyebrow">{{ t('presales.page.eyebrow') }}</span>
       <h2>{{ t('presales.overview.title') }}</h2>
+      <p class="page-subtitle">{{ t('presales.overview.subtitle') }}</p>
     </header>
 
     <div class="stat-grid">

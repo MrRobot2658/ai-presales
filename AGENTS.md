@@ -22,7 +22,13 @@ npm run test:e2e
 npm run build
 ```
 
-Docker (single container): `cp .env.example .env` then `npm run docker:up`. See `docs/docker.md`.
+Docker: `cp .env.example .env` then `npm run docker:up`. See `docs/docker.md`.
+
+After client/server changes while Compose is running, **always hot deploy by default**:
+
+```bash
+npm run deploy:hot
+```
 
 Use the smallest relevant check while iterating. Before a broad PR, run
 `npm run harness:check`, `npm run test:coverage`, `npm run test:e2e`, and

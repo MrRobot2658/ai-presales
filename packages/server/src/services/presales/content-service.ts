@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { basename, extname, join } from 'path'
 import { createHash, randomUUID } from 'crypto'
@@ -50,7 +50,101 @@ export interface CreateContentDraftInput {
   description: string
 }
 
-const PPT_EXTENSIONS = new Set(['pptx', 'ppt'])
+const CONTENT_PREVIEW_EXTENSIONS = new Set(['pptx', 'ppt', 'pdf'])
+
+function isPresentableContentFilename(filename: string): boolean {
+  const lower = filename.toLowerCase()
+  if (filename.startsWith('.') || filename.startsWith('~$')) return false
+  if (lower.endsWith('.bak')) return false
+  const ext = extname(filename).replace(/^\./, '').toLowerCase()
+  return CONTENT_PREVIEW_EXTENSIONS.has(ext)
+}
+
+function outputFileBasename(outputFile?: string): string {
+  if (!outputFile) return ''
+  return basename(outputFile.replace(/\\/g, '/'))
+}
+
+function sanitizeFileStem(name: string): string {
+  return name.replace(/[^\w\u4e00-\u9fff-]+/g, '-').replace(/^-+|-+$/g, '') || '方案'
+}
+
+function buildDraftOutputPaths(profileName: string, draftId: string, companyName: string) {
+  const outputDirectoryAbs = getContentDraftPptDir(profileName, draftId)
+  const stem = sanitizeFileStem(`${companyName}-方案`)
+  const outputFileAbs = join(outputDirectoryAbs, `${stem}.pptx`)
+  return {
+    outputDirectoryAbs,
+    outputDirectory: toProfileRelPath(profileName, outputDirectoryAbs),
+    outputFileAbs,
+    outputFile: toProfileRelPath(profileName, outputFileAbs),
+  }
+}
+
+export async function syncDraftHtmlFile(profileName: string, draft: ContentDraftRecord): Promise<void> {
+  if (!draft.htmlContent?.trim()) return
+  const htmlPath = join(getContentDraftsRoot(profileName), `${draft.id}.html`)
+  const body = draft.htmlContent.trim()
+  const title = draft.title || draft.companyName || '方案预览'
+  const document = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title.replace(/[<>&"]/g, '')}</title>
+</head>
+<body>
+${body}
+</body>
+</html>`
+  await writeFile(htmlPath, document, 'utf-8')
+}
+
+export async function ensureContentArtifact(
+  tenant: PresalesTenantContext,
+  draftId: string,
+): Promise<ContentDraftRecord> {
+  await ensurePresalesProfileLayout(tenant.hermesProfileName)
+  const profileName = tenant.hermesProfileName
+  let draft = await readDraft(profileName, draftId)
+  if (!draft) throw new Error('Content draft not found')
+
+  const paths = draft.outputFile && draft.outputFileAbs
+    ? {
+      outputDirectory: draft.outputDirectory,
+      outputDirectoryAbs: draft.outputDirectoryAbs,
+      outputFile: draft.outputFile,
+      outputFileAbs: draft.outputFileAbs,
+    }
+    : buildDraftOutputPaths(profileName, draftId, draft.companyName || draft.title || '方案')
+
+  if (draft.outputFileAbs && existsSync(draft.outputFileAbs)) {
+    if (!draft.outputFile) {
+      draft = {
+        ...draft,
+        ...paths,
+        updatedAt: new Date().toISOString(),
+      }
+      await writeDraft(profileName, draft)
+    }
+    return draft
+  }
+
+  const { writeBlankPptx } = await import('./presales-pptx-blank')
+  await mkdir(paths.outputDirectoryAbs!, { recursive: true })
+  await writeBlankPptx(paths.outputFileAbs!, draft.title || draft.companyName || '新方案')
+
+  const next: ContentDraftRecord = {
+    ...draft,
+    outputDirectory: paths.outputDirectory ?? draft.outputDirectory,
+    outputDirectoryAbs: paths.outputDirectoryAbs ?? draft.outputDirectoryAbs,
+    outputFile: paths.outputFile,
+    outputFileAbs: paths.outputFileAbs,
+    status: draft.status === 'generating' ? 'generating' : (draft.status || 'draft'),
+    updatedAt: new Date().toISOString(),
+  }
+  await writeDraft(profileName, next)
+  return next
+}
 
 function scenarioLabels(scenario: string[]): string[] {
   return scenario.map((value) => {
@@ -113,8 +207,7 @@ async function walkPptFiles(rootDir: string): Promise<string[]> {
         await walk(absPath)
         continue
       }
-      const ext = extname(entry.name).replace(/^\./, '').toLowerCase()
-      if (PPT_EXTENSIONS.has(ext)) files.push(absPath)
+      if (isPresentableContentFilename(entry.name)) files.push(absPath)
     }
   }
 
@@ -133,6 +226,8 @@ function collectKnownOutputFiles(drafts: ContentDraftRecord[]): Set<string> {
 /** Default content source: scan content/ppt/ and mirror into drafts metadata. */
 async function syncProfilePptArtifacts(profileName: string): Promise<void> {
   const draftsRoot = getContentDraftsRoot(profileName)
+  await mkdir(draftsRoot, { recursive: true })
+
   const existingIds = new Set(await listDraftIds(profileName))
   const existingDrafts = (await Promise.all(
     [...existingIds].map((id) => readDraft(profileName, id)),
@@ -146,21 +241,36 @@ async function syncProfilePptArtifacts(profileName: string): Promise<void> {
 
   const pptRoot = getContentPptRoot(profileName)
   const files = await walkPptFiles(pptRoot)
+  const pptRelPaths = new Set<string>()
 
   for (const absPath of files) {
-    const relPath = toProfileRelPath(profileName, absPath)
+    const relPath = toProfileRelPath(profileName, absPath).replace(/\\/g, '/')
+    pptRelPaths.add(relPath)
     const fileStat = await stat(absPath)
     const filename = basename(absPath)
+    const mtime = fileStat.mtime.toISOString()
     const existingDraftId = outputFileToDraftId.get(relPath)
 
     if (existingDraftId) {
       const existing = existingDrafts.find((draft) => draft.id === existingDraftId)
-      if (existing && existing.updatedAt !== fileStat.mtime.toISOString()) {
-        await writeDraft(profileName, {
+      if (existing) {
+        const next: ContentDraftRecord = {
           ...existing,
-          updatedAt: fileStat.mtime.toISOString(),
           title: filename,
-        })
+          updatedAt: mtime,
+          outputFile: relPath,
+          outputFileAbs: absPath,
+          outputDirectory: CONTENT_PPT_REL,
+          outputDirectoryAbs: pptRoot,
+        }
+        if (
+          existing.title !== next.title
+          || existing.updatedAt !== next.updatedAt
+          || existing.outputFile !== next.outputFile
+          || existing.outputFileAbs !== next.outputFileAbs
+        ) {
+          await writeDraft(profileName, next)
+        }
       }
       continue
     }
@@ -168,7 +278,23 @@ async function syncProfilePptArtifacts(profileName: string): Promise<void> {
     if (knownOutputFiles.has(relPath)) continue
 
     const draftId = buildImportDraftId(relPath)
-    if (existingIds.has(draftId)) continue
+    if (existingIds.has(draftId)) {
+      const existing = existingDrafts.find((draft) => draft.id === draftId)
+      if (existing) {
+        await writeDraft(profileName, {
+          ...existing,
+          title: filename,
+          updatedAt: mtime,
+          outputFile: relPath,
+          outputFileAbs: absPath,
+          outputDirectory: CONTENT_PPT_REL,
+          outputDirectoryAbs: pptRoot,
+          source: 'imported',
+          status: 'completed',
+        })
+      }
+      continue
+    }
 
     const draft: ContentDraftRecord = {
       id: draftId,
@@ -179,7 +305,7 @@ async function syncProfilePptArtifacts(profileName: string): Promise<void> {
       knowledgeRefs: [],
       description: 'Imported from content/ppt',
       status: 'completed',
-      updatedAt: fileStat.mtime.toISOString(),
+      updatedAt: mtime,
       htmlContent: '',
       sections: [],
       outputDirectory: CONTENT_PPT_REL,
@@ -189,10 +315,17 @@ async function syncProfilePptArtifacts(profileName: string): Promise<void> {
       source: 'imported',
     }
 
-    await mkdir(draftsRoot, { recursive: true })
     await writeDraft(profileName, draft)
     existingIds.add(draftId)
     knownOutputFiles.add(relPath)
+    outputFileToDraftId.set(relPath, draftId)
+  }
+
+  for (const draft of existingDrafts) {
+    if (draft.source !== 'imported' || !draft.outputFile) continue
+    const relPath = draft.outputFile.replace(/\\/g, '/')
+    if (pptRelPaths.has(relPath)) continue
+    await unlink(getContentDraftPath(profileName, draft.id)).catch(() => undefined)
   }
 }
 
@@ -232,6 +365,10 @@ export async function listContentDrafts(tenant: PresalesTenantContext): Promise<
       }
       return draft.status === 'generating' || draft.status === 'draft'
     })
+    .map((draft) => ({
+      ...draft,
+      title: outputFileBasename(draft.outputFile) || draft.title,
+    }))
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 }
 
@@ -241,7 +378,12 @@ export async function getContentDraft(
 ): Promise<ContentDraftRecord | null> {
   await ensurePresalesProfileLayout(tenant.hermesProfileName)
   await syncProfilePptArtifacts(tenant.hermesProfileName)
-  return readDraft(tenant.hermesProfileName, draftId)
+  const draft = await readDraft(tenant.hermesProfileName, draftId)
+  if (!draft) return null
+  return {
+    ...draft,
+    title: outputFileBasename(draft.outputFile) || draft.title,
+  }
 }
 
 export async function createContentDraft(
@@ -252,8 +394,8 @@ export async function createContentDraft(
   const profileName = tenant.hermesProfileName
   const labels = scenarioLabels(input.scenario)
   const draftId = `draft-${randomUUID()}`
-  const outputDirectoryAbs = getContentDraftPptDir(profileName, draftId)
-  await mkdir(outputDirectoryAbs, { recursive: true })
+  const outputPaths = buildDraftOutputPaths(profileName, draftId, input.companyName)
+  await mkdir(outputPaths.outputDirectoryAbs, { recursive: true })
 
   const draft: ContentDraftRecord = {
     id: draftId,
@@ -271,12 +413,15 @@ export async function createContentDraft(
       { id: 's2', title: '解决方案', content: '结合知识库输出可落地实施路径。' },
       { id: 's3', title: '价值与 ROI', content: '量化预期收益与里程碑。' },
     ],
-    outputDirectory: toProfileRelPath(profileName, outputDirectoryAbs),
-    outputDirectoryAbs,
+    outputDirectory: outputPaths.outputDirectory,
+    outputDirectoryAbs: outputPaths.outputDirectoryAbs,
+    outputFile: outputPaths.outputFile,
+    outputFileAbs: outputPaths.outputFileAbs,
     source: 'draft',
   }
 
   await writeDraft(profileName, draft)
+  await syncDraftHtmlFile(profileName, draft)
   return draft
 }
 
@@ -295,5 +440,6 @@ export async function updateContentDraft(
     updatedAt: new Date().toISOString(),
   }
   await writeDraft(tenant.hermesProfileName, next)
+  await syncDraftHtmlFile(tenant.hermesProfileName, next)
   return next
 }

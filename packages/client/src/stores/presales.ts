@@ -10,6 +10,8 @@ import { listKnowledgeFiles, uploadKnowledgeFile } from '@/api/presales/knowledg
 import { listOpportunities } from '@/api/presales/opportunities'
 import {
   createContentDraft as createContentDraftApi,
+  ensureContentArtifact as ensureContentArtifactApi,
+  generateContentDraft as generateContentDraftApi,
   getContentDraft as getContentDraftApi,
   listContentDrafts,
   updateContentDraft as updateContentDraftApi,
@@ -68,6 +70,11 @@ export const usePresalesStore = defineStore('presales', () => {
       .filter((item) => item.status === 'ready')
       .map((item) => ({ label: item.fileName, value: item.id })),
   )
+
+  function knowledgeRefLabels(refs: string[]): string[] {
+    const byId = new Map(knowledgeFiles.value.map((item) => [item.id, item.fileName]))
+    return refs.map((id) => byId.get(id) ?? id)
+  }
 
   async function fetchOpportunities(activeTenantSlug?: string) {
     opportunitiesLoading.value = true
@@ -145,6 +152,21 @@ export const usePresalesStore = defineStore('presales', () => {
     if (index >= 0) contentDrafts.value[index] = updated
   }
 
+  async function generateDraft(draftId: string): Promise<{ item: ContentDraft; warning?: string }> {
+    const result = await generateContentDraftApi(draftId, tenantSlug.value ?? undefined)
+    const index = contentDrafts.value.findIndex((d) => d.id === draftId)
+    if (index >= 0) contentDrafts.value[index] = result.item
+    else contentDrafts.value.unshift(result.item)
+    return result
+  }
+
+  async function ensureDraftArtifact(draftId: string): Promise<ContentDraft> {
+    const updated = await ensureContentArtifactApi(draftId, tenantSlug.value ?? undefined)
+    const index = contentDrafts.value.findIndex((d) => d.id === draftId)
+    if (index >= 0) contentDrafts.value[index] = updated
+    return updated
+  }
+
   async function saveDraft(draftId: string, htmlContent: string, sections: ContentDraft['sections']) {
     const updated = await updateContentDraftApi(
       draftId,
@@ -173,6 +195,7 @@ export const usePresalesStore = defineStore('presales', () => {
     knowledgeFiles,
     knowledgeLoading,
     knowledgeOptions,
+    knowledgeRefLabels,
     knowledgeTenantSlug,
     contentDrafts,
     contentLoading,
@@ -190,6 +213,8 @@ export const usePresalesStore = defineStore('presales', () => {
     submitKnowledgeTicket,
     createDraft,
     finishGenerating,
+    generateDraft,
+    ensureDraftArtifact,
     saveDraft,
     getDraft,
     loadContentDraft,

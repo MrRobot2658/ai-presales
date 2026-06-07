@@ -221,7 +221,8 @@ export class GatewayManager {
    */
   private readProfilePort(name: string): { port: number; host: string } {
     const configPath = join(this.profileDir(name), 'config.yaml')
-    const defaultHost = process.env.GATEWAY_HOST || '127.0.0.1'
+    const envHost = process.env.GATEWAY_HOST?.trim()
+    const defaultHost = envHost || '127.0.0.1'
 
     if (!existsSync(configPath)) return { port: 8642, host: defaultHost }
 
@@ -230,9 +231,9 @@ export class GatewayManager {
       const cfg = yaml.load(content, { json: true }) as any || {}
 
       const extra = cfg?.platforms?.api_server?.extra
-      const rawPort = extra?.port || 8642
-      const port = typeof rawPort === 'number' ? rawPort : parseInt(rawPort, 10) || 8642
-      const host = extra?.host || defaultHost
+      const rawPort = extra?.port || process.env.HERMES_GATEWAY_PORT || 8642
+      const port = typeof rawPort === 'number' ? rawPort : parseInt(String(rawPort), 10) || 8642
+      const host = envHost || extra?.host || defaultHost
       // 端口超出合法范围时回退到默认值
       return { port: port > 0 && port <= 65535 ? port : 8642, host }
     } catch {
@@ -495,6 +496,14 @@ export class GatewayManager {
       diagnostics.reason = this.isProcessAlive(pid) ? 'pid alive but health check failed' : 'stale pid file'
     } else if (!diagnostics.pid_file_exists) {
       diagnostics.reason = 'missing pid file'
+    }
+
+    const isRemoteHost = host !== '127.0.0.1' && host !== 'localhost'
+    if (isRemoteHost && await this.checkHealth(url)) {
+      diagnostics.health_ok = true
+      diagnostics.reason = 'remote gateway health check passed'
+      this.gateways.set(name, { pid: pid || 0, port, host, url, owned: false })
+      return { profile: name, port, host, url, running: true, pid: pid ?? undefined, diagnostics }
     }
 
     // 没有 PID 文件时不认领端口上的未知网关，避免误判其他 profile 的网关

@@ -3,8 +3,12 @@ import { updateUsage } from '../../db/hermes/usage-store'
 
 let gatewayManager: any = null
 
-export function setGatewayManagerForTest(manager: any): void {
+export function initGatewayManager(manager: any): void {
   gatewayManager = manager
+}
+
+export function setGatewayManagerForTest(manager: any): void {
+  initGatewayManager(manager)
 }
 
 function getGatewayManager() { return gatewayManager }

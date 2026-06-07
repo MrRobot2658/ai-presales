@@ -63,6 +63,8 @@
     "docker:logs": "docker compose logs -f hermes-webui",
     "docker:down": "docker compose down",
     "docker:recreate": "docker compose up -d --force-recreate",
+    "deploy:hot": "node scripts/hot-deploy.mjs",
+    "deploy:hot:fast": "node scripts/hot-deploy.mjs --skip-build",
     "claude": "claude --dangerously-skip-permissions"
   },
   "files": [
@@ -75,12 +77,14 @@
     "eventsource": "^4.1.0",
     "ioredis": "^5.11.1",
     "js-tiktoken": "^1.0.21",
+    "jszip": "^3.10.1",
     "katex": "^0.17.0",
     "node-edge-tts": "^1.2.10",
     "node-pty": "^1.1.0",
     "pg": "^8.21.0",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@koa/bodyparser": "^5.0.0",
@@ -102,8 +106,11 @@
     "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.1",
+    "@types/xml2js": "^0.4.14",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vitest/coverage-v8": "^3.2.4",
+    "@vue-office/pdf": "^1.6.5",
+    "@vue-office/pptx": "^1.0.1",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
     "@xterm/addon-fit": "^0.11.0",
@@ -127,6 +134,7 @@
     "pinia": "^3.0.4",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
+    "pptx-preview": "^1.0.7",
     "qrcode": "^1.5.4",
     "sass": "^1.99.0",
     "tar": "^7.5.16",

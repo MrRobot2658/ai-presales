@@ -3,9 +3,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NSpin, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { downloadContentFile } from '@/api/presales/content'
+import { downloadContentFile, exportContentToPptx } from '@/api/presales/content'
+import ContentFilePreviewPane from '@/components/presales/ContentFilePreviewPane.vue'
+import ContentHtmlPreviewPane from '@/components/presales/ContentHtmlPreviewPane.vue'
 import { usePresalesContentHermesEdit } from '@/composables/usePresalesContentHermesEdit'
 import { usePresalesStore } from '@/stores/presales'
+import { contentFileBasename, resolveContentPreviewKind } from '@/utils/content-preview'
 import type { ContentDraft } from '@/data/presales-mock'
 
 const { t } = useI18n()
@@ -20,29 +23,44 @@ const draft = ref<ContentDraft | null>(null)
 const htmlContent = ref('')
 const sections = ref<{ id: string; title: string; content: string }[]>([])
 const chatInput = ref('')
-const filePreviewUrl = ref<string | null>(null)
+const previewKey = ref(0)
 const loading = ref(true)
+const downloading = ref(false)
 const dragIndex = ref<number | null>(null)
 
-const hasOutputFile = computed(() => Boolean(draft.value?.outputFile))
-const fileExt = computed(() => {
+const previewFileName = computed(() => {
   const name = draft.value?.outputFile || draft.value?.title || ''
-  const parts = name.split('.')
-  return (parts.pop() || '').toLowerCase()
+  return contentFileBasename(name)
 })
+const previewKind = computed(() => resolveContentPreviewKind(previewFileName.value))
+const isPdfDraft = computed(() => previewKind.value === 'pdf')
+const isPptDraft = computed(() => previewKind.value === 'ppt')
+const showOutline = computed(() => !isPdfDraft.value && sections.value.length > 0)
 
-function fileTypeLabel() {
-  if (fileExt.value === 'pptx' || fileExt.value === 'ppt') return 'PPT'
-  if (fileExt.value === 'docx' || fileExt.value === 'doc') return 'Word'
-  if (fileExt.value === 'html') return 'HTML'
-  return fileExt.value.toUpperCase() || 'FILE'
+function buildFallbackHtml(item: ContentDraft): string {
+  if (item.htmlContent?.trim()) return item.htmlContent
+  if (item.sections?.length) {
+    return item.sections
+      .map((s) => `<section><h2>${s.title}</h2><p>${s.content}</p></section>`)
+      .join('\n')
+  }
+  return `<h1>${item.title || item.companyName}</h1><section><h2>方案概览</h2><p>下载时将转换为 PPT 文件。</p></section>`
+}
+
+function buildFallbackSections(item: ContentDraft) {
+  if (item.sections?.length) return item.sections.map((s) => ({ ...s }))
+  return [
+    { id: 's1', title: '封面', content: item.companyName || item.title },
+    { id: 's2', title: '方案概览', content: '可在左侧大纲编辑，下载时导出为 PPT。' },
+  ]
 }
 
 async function loadDraftData() {
   loading.value = true
   try {
     draft.value = store.getDraft(draftId.value) || await store.loadContentDraft(draftId.value)
-  } catch {
+  } catch (err: any) {
+    message.error(err?.message || t('presales.editor.loadFailed'))
     draft.value = null
   } finally {
     loading.value = false
@@ -53,35 +71,41 @@ async function loadDraftData() {
     return
   }
 
-  htmlContent.value = draft.value.htmlContent
-  sections.value = draft.value.sections?.map((s) => ({ ...s })) || []
-
-  if (draft.value.outputFile) {
-    try {
-      const { getContentFileBlobUrl } = await import('@/api/presales/content')
-      if (filePreviewUrl.value) URL.revokeObjectURL(filePreviewUrl.value)
-      filePreviewUrl.value = await getContentFileBlobUrl(draftId.value, store.tenantSlug ?? undefined)
-    } catch {
-      filePreviewUrl.value = null
-    }
-    await startHermesEdit(t('presales.editor.editPrompt'))
-  }
+  htmlContent.value = buildFallbackHtml(draft.value)
+  sections.value = buildFallbackSections(draft.value)
 }
 
-async function startHermesEdit(instruction?: string) {
+async function persistDraft() {
+  await store.saveDraft(draftId.value, htmlContent.value, sections.value)
+}
+
+async function startHermesEdit(instruction: string) {
+  const trimmed = instruction.trim()
+  if (!trimmed) return
+
+  if (isPptDraft.value) {
+    chatMessages.value.push({ role: 'user', text: trimmed })
+    await persistDraft()
+    chatMessages.value.push({
+      role: 'assistant',
+      text: t('presales.editor.htmlEditHint'),
+    })
+    return
+  }
+
   if (!draft.value?.outputFile) return
+
   try {
     await runHermesEdit({
       draftId: draftId.value,
       outputFile: draft.value.outputFile,
       outputFileAbs: draft.value.outputFileAbs,
       title: draft.value.title,
-      userInstruction: instruction || chatInput.value.trim() || t('presales.editor.editPrompt'),
+      userInstruction: trimmed,
       tenantSlug: store.tenantSlug ?? undefined,
     })
     draft.value = { ...draft.value, status: 'completed' }
-    const index = store.contentDrafts.findIndex((d) => d.id === draftId.value)
-    if (index >= 0) store.contentDrafts[index] = { ...store.contentDrafts[index], status: 'completed' }
+    previewKey.value += 1
   } catch (err: any) {
     message.error(err?.message || t('presales.editor.editFailed'))
   }
@@ -91,39 +115,47 @@ async function sendChat() {
   const text = chatInput.value.trim()
   if (!text || isEditing.value) return
   chatInput.value = ''
-
-  if (hasOutputFile.value) {
-    await startHermesEdit(text)
-    return
-  }
-
-  chatMessages.value.push({ role: 'user', text })
-  setTimeout(() => {
-    chatMessages.value.push({
-      role: 'assistant',
-      text: `已根据你的要求更新建议：${text}。你可以在中间编辑区继续微调段落内容。`,
-    })
-  }, 600)
+  await startHermesEdit(text)
 }
 
 async function saveDraft() {
-  await store.saveDraft(draftId.value, htmlContent.value, sections.value)
+  await persistDraft()
   message.success(t('presales.editor.saved'))
   router.push({ name: 'presales.content' })
 }
 
 async function downloadDoc() {
-  if (draft.value?.outputFile) {
-    await downloadContentFile(draftId.value, store.tenantSlug ?? undefined)
-    return
+  downloading.value = true
+  try {
+    await persistDraft()
+
+    if (isPptDraft.value) {
+      await exportContentToPptx(draftId.value, {
+        htmlContent: htmlContent.value,
+        sections: sections.value,
+      }, store.tenantSlug ?? undefined)
+      await downloadContentFile(draftId.value, store.tenantSlug ?? undefined)
+      message.success(t('presales.editor.downloadPptDone'))
+      return
+    }
+
+    if (draft.value?.outputFile) {
+      await downloadContentFile(draftId.value, store.tenantSlug ?? undefined)
+      return
+    }
+
+    const blob = new Blob([htmlContent.value], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${draft.value?.companyName || 'document'}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    message.error(err?.message || t('presales.editor.exportFailed'))
+  } finally {
+    downloading.value = false
   }
-  const blob = new Blob([htmlContent.value], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${draft.value?.companyName || 'document'}.html`
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 function onDragStart(idx: number) {
@@ -137,13 +169,18 @@ function onDrop(idx: number) {
   list.splice(idx, 0, item)
   sections.value = list
   dragIndex.value = null
+  syncAllSectionsToHtml()
 }
 
 function syncSectionToHtml(sectionId: string, content: string) {
   const section = sections.value.find((s) => s.id === sectionId)
   if (section) section.content = content
+  syncAllSectionsToHtml()
+}
+
+function syncAllSectionsToHtml() {
   htmlContent.value = sections.value
-    .map((s) => `<section><h2>${s.title}</h2><p>${s.content}</p></section>`)
+    .map((s) => `<section><h2>${s.title}</h2><p>${s.content.replace(/\n/g, '<br/>')}</p></section>`)
     .join('\n')
 }
 
@@ -161,7 +198,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopEdit()
-  if (filePreviewUrl.value) URL.revokeObjectURL(filePreviewUrl.value)
 })
 </script>
 
@@ -170,9 +206,9 @@ onUnmounted(() => {
     <header class="editor-toolbar">
       <strong>{{ draft?.title }}</strong>
       <div class="toolbar-actions">
-        <NButton v-if="!hasOutputFile" size="small" @click="saveDraft">{{ t('presales.editor.saveDraft') }}</NButton>
-        <NButton size="small" type="primary" :disabled="isEditing" @click="downloadDoc">
-          {{ t('presales.editor.download') }}
+        <NButton v-if="showOutline" size="small" @click="saveDraft">{{ t('presales.editor.saveDraft') }}</NButton>
+        <NButton size="small" type="primary" :loading="downloading" :disabled="isEditing" @click="downloadDoc">
+          {{ isPptDraft ? t('presales.editor.downloadPpt') : t('presales.editor.download') }}
         </NButton>
       </div>
     </header>
@@ -181,61 +217,43 @@ onUnmounted(() => {
       <NSpin size="large" />
     </div>
 
-    <div v-else class="editor-layout">
-      <aside v-if="!hasOutputFile" class="outline">
+    <div v-else class="editor-layout" :class="{ 'with-outline': showOutline, 'pdf-mode': isPdfDraft }">
+      <aside v-if="showOutline" class="outline">
         <h4>{{ t('presales.editor.outline') }}</h4>
         <div
           v-for="(section, idx) in sections"
           :key="section.id"
-          class="outline-item"
+          class="outline-block"
           draggable="true"
           @dragstart="onDragStart(idx)"
           @dragover.prevent
           @drop="onDrop(idx)"
         >
-          {{ section.title }}
+          <strong>{{ section.title }}</strong>
+          <NInput
+            :value="section.content"
+            type="textarea"
+            :rows="3"
+            :disabled="isEditing"
+            @update:value="(v) => syncSectionToHtml(section.id, v)"
+          />
         </div>
       </aside>
 
       <main class="content-area">
-        <div v-if="hasOutputFile" class="file-layer">
-          <div class="file-card">
-            <div class="file-badge">{{ fileTypeLabel() }}</div>
-            <h3>{{ draft?.title }}</h3>
-            <p class="file-path">
-              <span>{{ t('presales.editor.filePath') }}：</span>
-              {{ draft?.outputFile }}
-            </p>
-            <a
-              v-if="filePreviewUrl"
-              class="file-open-link"
-              :href="filePreviewUrl"
-              target="_blank"
-              rel="noopener"
-            >
-              {{ t('presales.content.downloadFile') }}
-            </a>
-          </div>
-
-          <div v-if="isEditing" class="editing-overlay">
-            <NSpin size="medium" />
-            <strong>{{ t('presales.editor.editingOverlay') }}</strong>
-            <p>{{ t('presales.editor.openWithHermes') }}</p>
-          </div>
+        <div v-if="isPdfDraft" class="file-layer">
+          <ContentFilePreviewPane
+            :draft-id="draftId"
+            :file-name="previewFileName"
+            :tenant-slug="store.tenantSlug ?? undefined"
+            :preview-key="previewKey"
+          />
         </div>
-
-        <template v-else>
-          <div v-for="section in sections" :key="section.id" class="section-editor">
-            <h3>{{ section.title }}</h3>
-            <NInput
-              :value="section.content"
-              type="textarea"
-              :rows="4"
-              :disabled="isEditing"
-              @update:value="(v) => syncSectionToHtml(section.id, v)"
-            />
-          </div>
-        </template>
+        <ContentHtmlPreviewPane
+          v-else
+          :title="draft?.title || ''"
+          :html-content="htmlContent"
+        />
       </main>
 
       <aside class="ai-panel">
@@ -301,7 +319,15 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 200px 1fr 280px;
+  grid-template-columns: 1fr 320px;
+
+  &.with-outline {
+    grid-template-columns: 280px 1fr 320px;
+  }
+
+  &.pdf-mode {
+    grid-template-columns: 1fr 320px;
+  }
 }
 
 .outline,
@@ -322,98 +348,30 @@ onUnmounted(() => {
   color: $text-secondary;
 }
 
-.outline-item {
-  padding: 8px 10px;
-  margin-bottom: 6px;
+.outline-block {
+  padding: 10px;
+  margin-bottom: 10px;
   border: 1px dashed $border-color;
   border-radius: $radius-sm;
-  font-size: 13px;
-  color: $text-primary;
   cursor: grab;
+
+  strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: $text-primary;
+  }
 }
 
 .content-area {
   position: relative;
+  padding: 0;
 }
 
 .file-layer {
   position: relative;
+  height: 100%;
   min-height: 420px;
-  border: 1px solid $border-color;
-  border-radius: $radius-lg;
-  background: linear-gradient(180deg, rgba(var(--accent-primary-rgb), 0.04), $bg-card);
-  overflow: hidden;
-}
-
-.file-card {
-  padding: 48px 32px;
-  text-align: center;
-
-  h3 {
-    margin: 16px 0 8px;
-    color: $text-primary;
-    word-break: break-all;
-  }
-}
-
-.file-badge {
-  display: inline-flex;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(var(--accent-primary-rgb), 0.12);
-  color: $accent-primary;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.file-path {
-  margin: 0;
-  font-size: 13px;
-  color: $text-muted;
-  word-break: break-all;
-}
-
-.file-open-link {
-  display: inline-block;
-  margin-top: 16px;
-  color: $accent-primary;
-  font-size: 13px;
-}
-
-.editing-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(2px);
-  color: #fff;
-  text-align: center;
-  z-index: 2;
-
-  strong {
-    font-size: 18px;
-    letter-spacing: 0.08em;
-  }
-
-  p {
-    margin: 0;
-    font-size: 13px;
-    opacity: 0.9;
-  }
-}
-
-.section-editor {
-  margin-bottom: 16px;
-
-  h3 {
-    margin: 0 0 8px;
-    font-size: 15px;
-    color: $text-primary;
-  }
 }
 
 .chat-list {
@@ -448,13 +406,10 @@ onUnmounted(() => {
   }
 }
 
-.editor-layout:has(.content-area .file-layer) {
-  grid-template-columns: 1fr 320px;
-}
-
 @media (max-width: $breakpoint-mobile) {
   .editor-layout,
-  .editor-layout:has(.content-area .file-layer) {
+  .editor-layout.with-outline,
+  .editor-layout.pdf-mode {
     grid-template-columns: 1fr;
   }
 

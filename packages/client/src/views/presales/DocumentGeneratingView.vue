@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { NButton, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { usePresalesStore } from '@/stores/presales'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
 const store = usePresalesStore()
 
 const draftId = computed(() => route.params.draftId as string)
@@ -19,6 +21,22 @@ const steps = computed(() => [
 ])
 const activeStep = ref(0)
 const chainLines = ref<string[]>([])
+const failed = ref(false)
+const errorMessage = ref('')
+
+function advanceSteps(totalMs: number) {
+  const intervalMs = Math.max(800, Math.floor(totalMs / steps.value.length))
+  let idx = 0
+  const timer = setInterval(() => {
+    if (idx < steps.value.length - 1) {
+      idx += 1
+      activeStep.value = idx
+    } else {
+      clearInterval(timer)
+    }
+  }, intervalMs)
+  return () => clearInterval(timer)
+}
 
 onMounted(async () => {
   if (!store.getDraft(draftId.value)) {
@@ -30,41 +48,66 @@ onMounted(async () => {
     return
   }
 
-  const knowledgeNames = loadedDraft.knowledgeRefs.join(', ')
-  const chain = [
+  if (store.knowledgeFiles.length === 0) {
+    await store.fetchKnowledgeFiles()
+  }
+
+  const knowledgeNames = store.knowledgeRefLabels(loadedDraft.knowledgeRefs).join(', ')
+  chainLines.value = [
     `${t('presales.generating.chain1')} ${loadedDraft.companyName}`,
-    `${t('presales.generating.chain2')} ${knowledgeNames || 'kb-1'}`,
+    `${t('presales.generating.chain2')} ${knowledgeNames || '—'}`,
     t('presales.generating.chain3'),
     t('presales.generating.chain4'),
   ]
+  activeStep.value = 0
 
-  for (let i = 0; i < steps.value.length; i++) {
-    activeStep.value = i
-    chainLines.value = chain.slice(0, i + 1)
-    await new Promise((r) => setTimeout(r, 1200))
+  const stopSteps = advanceSteps(120_000)
+
+  try {
+    const result = await store.generateDraft(draftId.value)
+    activeStep.value = steps.value.length - 1
+    if (result.warning) {
+      message.warning(t('presales.generating.partial', { reason: result.warning }))
+    }
+    router.replace({ name: 'presales.editor', params: { draftId: draftId.value } })
+  } catch (err: any) {
+    try {
+      await store.ensureDraftArtifact(draftId.value)
+      message.warning(t('presales.generating.partialFallback'))
+      router.replace({ name: 'presales.editor', params: { draftId: draftId.value } })
+    } catch {
+      failed.value = true
+      errorMessage.value = err?.message || t('presales.generating.failed')
+      message.error(errorMessage.value)
+    }
+  } finally {
+    stopSteps()
   }
-
-  await store.finishGenerating(draftId.value)
-  router.replace({ name: 'presales.editor', params: { draftId: draftId.value } })
 })
 </script>
 
 <template>
   <div class="generating-page">
     <div class="generating-card">
-      <h2>{{ t('presales.generating.title') }}</h2>
+      <h2>{{ failed ? t('presales.generating.failedTitle') : t('presales.generating.title') }}</h2>
       <p>{{ draft?.title }}</p>
 
-      <ul class="steps">
+      <ul v-if="!failed" class="steps">
         <li v-for="(step, idx) in steps" :key="idx" :class="{ active: idx <= activeStep, done: idx < activeStep }">
           {{ step }}
         </li>
       </ul>
 
+      <p v-else class="error-text">{{ errorMessage }}</p>
+
       <div class="chain">
         <h4>{{ t('presales.generating.knowledgeChain') }}</h4>
         <p v-for="(line, idx) in chainLines" :key="idx">{{ line }}</p>
       </div>
+
+      <NButton v-if="failed" type="primary" @click="router.push({ name: 'presales.content' })">
+        {{ t('presales.generating.backToContent') }}
+      </NButton>
     </div>
   </div>
 </template>
@@ -89,6 +132,12 @@ onMounted(async () => {
 
   h2 { margin: 0 0 8px; color: $text-primary; }
   p { margin: 0 0 20px; color: $text-secondary; }
+}
+
+.error-text {
+  color: $error;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .steps {

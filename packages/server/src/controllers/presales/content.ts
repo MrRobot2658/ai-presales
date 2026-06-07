@@ -1,12 +1,17 @@
 import type { Context } from 'koa'
+import { extname } from 'path'
 import { createReadStream } from 'fs'
 import {
   createContentDraft,
+  ensureContentArtifact,
   getContentArtifactPath,
   getContentDraft,
   listContentDrafts,
   updateContentDraft,
+  type ContentDraftRecord,
 } from '../../services/presales/content-service'
+import { runContentGeneration } from '../../services/presales/content-generation'
+import { runContentExportPptx } from '../../services/presales/content-export-pptx'
 import { readPresalesManifest } from '../../services/presales/presales-profile-provision'
 
 function tenantSummary(ctx: Context) {
@@ -126,4 +131,100 @@ export async function download(ctx: Context) {
   ctx.set('Content-Type', 'application/octet-stream')
   ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(artifact.filename)}"`)
   ctx.body = createReadStream(artifact.absPath)
+}
+
+export async function preview(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  const artifact = await getContentArtifactPath(tenant, ctx.params.id)
+  if (!artifact) {
+    ctx.status = 404
+    ctx.body = { error: 'Content file not found' }
+    return
+  }
+
+  const ext = extname(artifact.filename).toLowerCase()
+  if (ext === '.pdf') {
+    ctx.body = { type: 'pdf', fileName: artifact.filename }
+    return
+  }
+
+  if (ext === '.pptx' || ext === '.ppt') {
+    ctx.body = { type: 'html', fileName: artifact.filename }
+    return
+  }
+
+  ctx.status = 415
+  ctx.body = { error: 'Preview is not supported for this file type' }
+}
+
+export async function ensureArtifact(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  try {
+    const item = await ensureContentArtifact(tenant, ctx.params.id)
+    ctx.body = { item, tenant: tenantSummary(ctx) }
+  } catch (err: any) {
+    ctx.status = err?.message === 'Content draft not found' ? 404 : 500
+    ctx.body = { error: err?.message || 'Failed to ensure content artifact' }
+  }
+}
+
+export async function generate(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  try {
+    const result = await runContentGeneration(tenant, ctx.params.id)
+    ctx.body = { item: result.item, warning: result.warning, tenant: tenantSummary(ctx) }
+  } catch (err: any) {
+    const message = err?.message || 'Failed to generate content'
+    if (message === 'Content draft not found') {
+      ctx.status = 404
+    } else if (message === 'Draft is not in generating status') {
+      ctx.status = 409
+    } else {
+      ctx.status = 500
+    }
+    ctx.body = { error: message }
+  }
+}
+
+export async function exportPptx(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  const body = (ctx.request.body || {}) as Record<string, unknown>
+  if (typeof body.htmlContent === 'string' || Array.isArray(body.sections)) {
+    await updateContentDraft(tenant, ctx.params.id, {
+      htmlContent: typeof body.htmlContent === 'string' ? body.htmlContent : undefined,
+      sections: Array.isArray(body.sections) ? body.sections as ContentDraftRecord['sections'] : undefined,
+    })
+  }
+
+  try {
+    const item = await runContentExportPptx(tenant, ctx.params.id)
+    ctx.body = { item, tenant: tenantSummary(ctx) }
+  } catch (err: any) {
+    ctx.status = 500
+    ctx.body = { error: err?.message || 'Failed to export PPT' }
+  }
 }

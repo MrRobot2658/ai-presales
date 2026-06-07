@@ -5,6 +5,7 @@ import { darkTheme, NConfigProvider, NMessageProvider, NDialogProvider, NNotific
 import { useI18n } from 'vue-i18n'
 import { getThemeOverrides } from '@/styles/theme'
 import { useTheme } from '@/composables/useTheme'
+import { isPresalesMode } from '@/config/presales-mode'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { useKeyboard } from '@/composables/useKeyboard'
 import { useAppStore } from '@/stores/hermes/app'
@@ -18,8 +19,9 @@ const appStore = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const ready = ref(false)
+const presalesMode = isPresalesMode()
 
-const themeOverrides = computed(() => getThemeOverrides(isDark.value, isComic.value))
+const themeOverrides = computed(() => getThemeOverrides(isDark.value, isComic.value, presalesMode))
 const naiveTheme = computed(() => isDark.value ? darkTheme : null)
 
 const isLoginPage = computed(() => route.name === 'login')
@@ -63,7 +65,7 @@ useKeyboard()
           <div v-if="nodeVersionLow && ready" class="node-warning-bar">
             {{ t('sidebar.nodeVersionWarning', { version: appStore.nodeVersion }) }}
           </div>
-          <div v-if="ready" class="app-layout" :class="{ 'no-sidebar': isLoginPage }">
+          <div v-if="ready" class="app-layout" :class="{ 'no-sidebar': isLoginPage, 'presales-ui': presalesMode }">
             <button v-if="!isLoginPage" class="hamburger-btn" @click="appStore.toggleSidebar">
               <img src="/logo.png" alt="Menu" style="width: 32px; height: 28px; object-fit: cover; object-position: left center;" />
             </button>

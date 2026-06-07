@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, onMounted } from 'vue'
+import { h, onActivated, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDataTable, NTag, useMessage, type DataTableColumns } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -12,9 +12,8 @@ const router = useRouter()
 const message = useMessage()
 const store = usePresalesStore()
 
-onMounted(() => {
-  void store.fetchContentDrafts()
-})
+onMounted(() => { void store.fetchContentDrafts() })
+onActivated(() => { void store.fetchContentDrafts() })
 
 async function handleDownload(row: ContentDraft) {
   try {
@@ -28,6 +27,14 @@ function openEditor(row: ContentDraft) {
   router.push({ name: 'presales.editor', params: { draftId: row.id } })
 }
 
+function displayFileName(row: ContentDraft) {
+  if (row.outputFile) {
+    const parts = row.outputFile.split('/')
+    return parts[parts.length - 1] || row.title
+  }
+  return row.title
+}
+
 function statusType(status: ContentDraft['status']) {
   if (status === 'completed') return 'success'
   if (status === 'editing') return 'warning'
@@ -36,8 +43,8 @@ function statusType(status: ContentDraft['status']) {
 }
 
 const columns: DataTableColumns<ContentDraft> = [
-  { title: () => t('presales.content.company'), key: 'companyName', minWidth: 160 },
-  { title: () => t('presales.content.titleCol'), key: 'title', minWidth: 220 },
+  { title: () => t('presales.content.fileName'), key: 'fileName', minWidth: 280, render: (row) => displayFileName(row) },
+  { title: () => t('presales.content.company'), key: 'companyName', minWidth: 140 },
   {
     title: () => t('presales.content.status'),
     key: 'status',
@@ -85,14 +92,16 @@ const columns: DataTableColumns<ContentDraft> = [
 
 <template>
   <div class="presales-page">
-    <header class="page-header">
+    <header class="page-hero">
+      <span class="page-eyebrow">{{ t('presales.page.eyebrow') }}</span>
       <h2>{{ t('presales.content.title') }}</h2>
-      <p class="subtitle">{{ t('presales.content.subtitle') }}</p>
+      <p class="page-subtitle">{{ t('presales.content.subtitle') }}</p>
     </header>
 
     <NDataTable
       :columns="columns"
       :data="store.drafts"
+      :loading="store.contentLoading"
       :bordered="false"
       size="small"
       :empty-text="t('presales.content.empty')"
@@ -101,14 +110,7 @@ const columns: DataTableColumns<ContentDraft> = [
 </template>
 
 <style scoped lang="scss">
-@use '@/styles/variables' as *;
 @use '@/styles/presales-page.scss';
-
-.subtitle {
-  margin: -12px 0 16px;
-  font-size: 13px;
-  color: $text-muted;
-}
 
 :deep(.action-cell) {
   display: flex;

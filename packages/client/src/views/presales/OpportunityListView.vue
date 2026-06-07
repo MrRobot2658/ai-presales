@@ -64,8 +64,10 @@ const columns: DataTableColumns<Opportunity> = [
 
 <template>
   <div class="presales-page list-page">
-    <header class="page-header">
+    <header class="page-hero">
+      <span class="page-eyebrow">{{ t('presales.page.eyebrow') }}</span>
       <h2>{{ t('presales.list.title') }}</h2>
+      <p class="page-subtitle">{{ t('presales.list.subtitle') }}</p>
     </header>
 
     <NDataTable

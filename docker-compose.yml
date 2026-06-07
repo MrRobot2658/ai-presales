@@ -37,6 +37,68 @@ services:
       retries: 5
     restart: unless-stopped
 
+  hermes-agent:
+    image: ${HERMES_AGENT_IMAGE:-nousresearch/hermes-agent:latest}
+    container_name: ${HERMES_AGENT_CONTAINER_NAME:-hermes-agent}
+    entrypoint: ["/opt/hermes/.venv/bin/hermes"]
+    command: ["gateway", "run"]
+    ports:
+      - "${HERMES_GATEWAY_PORT:-8642}:8642"
+    volumes:
+      - ${HERMES_DATA_DIR:-./hermes_data}:/opt/data
+      - ${HERMES_PROFILE_CONTENT_DIR:-./hermes_data/profiles/jingdigital/content}:/opt/data/profiles/${HERMES_PROFILE_NAME:-jingdigital}/content
+    environment:
+      - HERMES_ALLOW_ROOT_GATEWAY=1
+      - API_SERVER_ENABLED=${API_SERVER_ENABLED:-true}
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_PORT=8642
+      - API_SERVER_KEY=${API_SERVER_KEY:-changeme-set-a-strong-key}
+      - API_SERVER_CORS_ORIGINS=${API_SERVER_CORS_ORIGINS:-*}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8642/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  hermes-bridge:
+    image: ${WEBUI_IMAGE:-hermes-web-ui-local:latest}
+    container_name: ${HERMES_BRIDGE_CONTAINER_NAME:-hermes-bridge}
+    entrypoint: ["python3"]
+    command:
+      - /bridge/hermes_bridge.py
+      - --endpoint
+      - tcp://0.0.0.0:18765
+      - --hermes-home
+      - /opt/data
+    ports:
+      - "${HERMES_BRIDGE_PORT:-18765}:18765"
+    volumes:
+      - ${HERMES_DATA_DIR:-./hermes_data}:/opt/data
+      - ${HERMES_PROFILE_CONTENT_DIR:-./hermes_data/profiles/jingdigital/content}:/opt/data/profiles/${HERMES_PROFILE_NAME:-jingdigital}/content
+      - ./packages/server/src/services/hermes/agent-bridge/hermes_bridge.py:/bridge/hermes_bridge.py:ro
+    environment:
+      - HERMES_HOME=/opt/data
+      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://0.0.0.0:18765
+      - HERMES_AGENT_BRIDGE_WORKER_TRANSPORT=tcp
+      - HERMES_ALLOW_ROOT_GATEWAY=1
+      - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import socket; s=socket.create_connection(('127.0.0.1',18765),2); s.close()\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      hermes-agent:
+        condition: service_healthy
+    restart: unless-stopped
+
   hermes-webui:
     build:
       context: .
@@ -52,12 +114,14 @@ services:
     volumes:
       - ${HERMES_DATA_DIR:-./hermes_data}:/home/agent/.hermes
       - ${HERMES_DATA_DIR:-./hermes_data}/hermes-web-ui:/home/agent/.hermes-web-ui
+      - ${HERMES_PROFILE_CONTENT_DIR:-./hermes_data/profiles/jingdigital/content}:/home/agent/.hermes/profiles/${HERMES_PROFILE_NAME:-jingdigital}/content
     environment:
       - PORT=${PORT:-6060}
       - BIND_HOST=${BIND_HOST:-0.0.0.0}
       - HERMES_HOME=/home/agent/.hermes
       - HERMES_BIN=${HERMES_BIN:-/opt/hermes/.venv/bin/hermes}
-      - HERMES_WEB_UI_MANAGED_GATEWAY=1
+      - HERMES_WEB_UI_DISABLE_GATEWAY_AUTOSTART=1
+      - GATEWAY_HOST=${GATEWAY_HOST:-hermes-agent}
       - HERMES_WEB_UI_XAI_CALLBACK_BIND_HOST=0.0.0.0
       - PATH=/opt/hermes/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       - HERMES_ALLOW_ROOT_GATEWAY=1
@@ -69,12 +133,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aipresales}
       - POSTGRES_DB=${POSTGRES_DB:-aipresales}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      # Broker must bind 0.0.0.0 inside the container; do not use the worker hostname here.
-      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://0.0.0.0:18765
+      # Chat/presales agent bridge runs in hermes-bridge; webui only attaches.
+      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://hermes-bridge:18765
+      - HERMES_AGENT_BRIDGE_EXTERNAL=1
       - HERMES_AGENT_BRIDGE_WORKER_TRANSPORT=tcp
       - HERMES_WEB_UI_HOME=/home/agent/.hermes-web-ui
-    expose:
-      - "18765"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:${PORT:-6060}/health"]
       interval: 30s
@@ -87,6 +150,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      hermes-agent:
+        condition: service_healthy
+      hermes-bridge:
+        condition: service_healthy
     stdin_open: true
     tty: true
 
@@ -98,13 +165,14 @@ services:
     volumes:
       - ${HERMES_DATA_DIR:-./hermes_data}:/home/agent/.hermes
       - ${HERMES_DATA_DIR:-./hermes_data}/hermes-web-ui:/home/agent/.hermes-web-ui
+      - ${HERMES_PROFILE_CONTENT_DIR:-./hermes_data/profiles/jingdigital/content}:/home/agent/.hermes/profiles/${HERMES_PROFILE_NAME:-jingdigital}/content
       - ./dist/server/workers/presales-knowledge-worker.js:/app/dist/server/workers/presales-knowledge-worker.js:ro
     environment:
       - HERMES_HOME=/home/agent/.hermes
       - HERMES_BIN=${HERMES_BIN:-/opt/hermes/.venv/bin/hermes}
       - HERMES_WEB_UI_HOME=/home/agent/.hermes-web-ui
-      # Worker connects to the webui broker over the compose network.
-      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://hermes-webui:18765
+      # Worker connects to the shared Hermes agent bridge service.
+      - HERMES_AGENT_BRIDGE_ENDPOINT=tcp://hermes-bridge:18765
       - DATABASE_URL=${DATABASE_URL:-postgresql://aipresales:aipresales@postgres:5432/aipresales}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - PRESALES_WORKER_CONCURRENCY=${PRESALES_WORKER_CONCURRENCY:-1}

@@ -8,7 +8,14 @@
     "NODE_ENV": "development",
     "PORT": "8647",
     "TS_NODE_PROJECT": "packages/server/tsconfig.json",
-    "HERMES_WEB_UI_STOP_GATEWAYS_ON_SHUTDOWN": "0"
+    "HERMES_WEB_UI_STOP_GATEWAYS_ON_SHUTDOWN": "0",
+    "HERMES_HOME": "./hermes_data",
+    "HERMES_WEB_UI_DISABLE_GATEWAY_AUTOSTART": "1",
+    "GATEWAY_HOST": "127.0.0.1",
+    "HERMES_AGENT_BRIDGE_ENDPOINT": "tcp://127.0.0.1:18765",
+    "HERMES_AGENT_BRIDGE_EXTERNAL": "1",
+    "DATABASE_URL": "postgresql://aipresales:aipresales@127.0.0.1:5432/aipresales",
+    "REDIS_URL": "redis://127.0.0.1:6380"
   },
   "exec": "node -r ts-node/register packages/server/src/index.ts",
   "nodeArgs": ["--no-warnings"],

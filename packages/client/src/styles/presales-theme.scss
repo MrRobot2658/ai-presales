@@ -1,0 +1,103 @@
+// Siemens Xcelerator–inspired presales shell (Teal enterprise)
+// Applied via .presales-ui on app-layout
+
+.presales-ui {
+  --brand-teal: #009999;
+  --brand-teal-dark: #007a7a;
+  --brand-teal-light: #e6f7f7;
+  --brand-navy: #0b1d35;
+
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #eef2f6;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafb;
+  --bg-input: #ffffff;
+
+  --border-color: #dde3ea;
+  --border-light: #e8ecf0;
+
+  --accent-primary: #009999;
+  --accent-hover: #007a7a;
+  --accent-muted: #5a9e9e;
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a5568;
+  --text-muted: #8896a6;
+
+  --success: #0d9488;
+  --error: #dc2626;
+  --warning: #d97706;
+
+  --msg-user-bg: #eef2f6;
+  --msg-assistant-bg: #ffffff;
+  --msg-system-border: #dde3ea;
+  --code-bg: #f0f4f8;
+
+  --text-on-accent: #ffffff;
+  --text-on-overlay: #ffffff;
+  --accent-info: #009999;
+
+  --accent-primary-rgb: 0, 153, 153;
+  --accent-hover-rgb: 0, 122, 122;
+  --text-primary-rgb: 26, 26, 46;
+  --text-muted-rgb: 136, 150, 166;
+  --success-rgb: 13, 148, 136;
+  --error-rgb: 220, 38, 38;
+  --warning-rgb: 217, 119, 6;
+  --accent-info-rgb: 0, 153, 153;
+
+  --shadow-card: 0 2px 12px rgba(0, 60, 80, 0.08);
+  --shadow-card-hover: 0 4px 20px rgba(0, 60, 80, 0.12);
+  --radius-card: 8px;
+}
+
+.presales-ui .app-main {
+  background-color: var(--bg-primary);
+}
+
+.presales-ui .sidebar-presales {
+  background-color: var(--bg-sidebar);
+  border-right-color: var(--border-color);
+
+  .sidebar-logo {
+    background-color: var(--bg-sidebar);
+    box-shadow: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .nav-group-label {
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .nav-item {
+    color: var(--text-secondary);
+    border-radius: 6px;
+
+    &:hover {
+      background-color: var(--brand-teal-light);
+      color: var(--brand-teal-dark);
+    }
+
+    &.active {
+      background-color: var(--brand-teal-light);
+      color: var(--brand-teal);
+      font-weight: 500;
+    }
+  }
+
+  .sidebar-footer {
+    border-top-color: var(--border-color);
+  }
+
+  .logout-item:hover {
+    color: var(--error);
+    background: rgba(var(--error-rgb), 0.06);
+  }
+
+  .collapse-btn:hover {
+    color: var(--brand-teal);
+    background-color: var(--brand-teal-light);
+  }
+}

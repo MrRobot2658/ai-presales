@@ -114,6 +114,18 @@ async function startRuntimeServicesBeforeListen(): Promise<void> {
   }
 
   try {
+    const { GatewayManager } = await import('./services/hermes/gateway-manager')
+    const { initGatewayManager } = await import('./routes/hermes/proxy-handler')
+    const gatewayManagerInstance = new GatewayManager(process.env.PROFILE || 'default')
+    await gatewayManagerInstance.detectAllOnStartup()
+    initGatewayManager(gatewayManagerInstance)
+    console.log('[bootstrap] gateway manager initialized')
+  } catch (err) {
+    logger.warn(err, '[bootstrap] failed to initialize gateway manager')
+    console.warn('[bootstrap] failed to initialize gateway manager:', err instanceof Error ? err.message : err)
+  }
+
+  try {
     agentBridgeManager = await startAgentBridgeManager()
     console.log('[bootstrap] agent bridge started')
   } catch (err) {

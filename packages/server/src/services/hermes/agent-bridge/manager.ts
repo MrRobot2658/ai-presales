@@ -49,6 +49,15 @@ function envPositiveInt(name: string): number | undefined {
   return Number.isFinite(value) && value > 0 ? value : undefined
 }
 
+function envFlagEnabled(name: string): boolean {
+  const value = String(process.env[name] || '').trim().toLowerCase()
+  return ['1', 'true', 'yes', 'on'].includes(value)
+}
+
+export function isExternalAgentBridgeMode(): boolean {
+  return envFlagEnabled('HERMES_AGENT_BRIDGE_EXTERNAL')
+}
+
 export function buildAgentBridgeProcessEnv(endpoint: string, hermesHome: string | undefined, agentRoot: string | undefined): NodeJS.ProcessEnv {
   return {
     ...process.env,
@@ -462,6 +471,10 @@ export class AgentBridgeManager {
   private async startProcess(): Promise<void> {
     if (await this.attachExistingBridge()) {
       return
+    }
+
+    if (isExternalAgentBridgeMode()) {
+      throw new Error(`agent bridge external mode: could not attach to ${this.endpoint}`)
     }
 
     const script = bridgeScriptPath()

@@ -22,6 +22,7 @@ npm run build
 | Change | Minimum local validation |
 | --- | --- |
 | Docs only | `npm run harness:check` |
+| Client/server change verified in local Docker Compose | `npm run deploy:hot` after build (default for agents) |
 | Client component/store/API | focused `npm run test -- <pattern>`, then `npm run build` |
 | User-visible browser flow | focused Vitest plus `npm run test:e2e` |
 | Server controller/service/db | focused `npm run test -- tests/server/<file>` |

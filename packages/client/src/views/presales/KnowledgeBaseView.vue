@@ -78,8 +78,12 @@ async function submitTicket() {
 
 <template>
   <div class="presales-page">
-    <header class="page-header row">
-      <h2>{{ t('presales.knowledge.title') }}</h2>
+    <header class="page-hero page-hero-row">
+      <div class="page-hero-text">
+        <span class="page-eyebrow">{{ t('presales.page.eyebrow') }}</span>
+        <h2>{{ t('presales.knowledge.title') }}</h2>
+        <p class="page-subtitle">{{ t('presales.knowledge.subtitle') }}</p>
+      </div>
       <NButton type="primary" @click="openUpload">{{ t('presales.knowledge.upload') }}</NButton>
     </header>
 
@@ -111,12 +115,6 @@ async function submitTicket() {
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 @use '@/styles/presales-page.scss';
-
-.page-header.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 
 .upload-form {
   display: flex;

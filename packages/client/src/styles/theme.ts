@@ -1,5 +1,85 @@
 import type { GlobalThemeOverrides } from 'naive-ui'
 
+const PRESALES_TEAL = '#009999'
+const PRESALES_TEAL_HOVER = '#007a7a'
+const PRESALES_TEAL_PRESSED = '#006666'
+
+export const presalesThemeOverrides: GlobalThemeOverrides = {
+  common: {
+    primaryColor: PRESALES_TEAL,
+    primaryColorHover: PRESALES_TEAL_HOVER,
+    primaryColorPressed: PRESALES_TEAL_PRESSED,
+    primaryColorSuppl: PRESALES_TEAL,
+    bodyColor: '#f5f7fa',
+    cardColor: '#ffffff',
+    modalColor: '#ffffff',
+    popoverColor: '#ffffff',
+    tableColor: '#ffffff',
+    inputColor: '#ffffff',
+    actionColor: '#eef2f6',
+    textColorBase: '#1a1a2e',
+    textColor1: '#1a1a2e',
+    textColor2: '#4a5568',
+    textColor3: '#8896a6',
+    dividerColor: '#dde3ea',
+    borderColor: '#dde3ea',
+    hoverColor: 'rgba(0, 153, 153, 0.06)',
+    borderRadius: '8px',
+    borderRadiusSmall: '6px',
+    fontSize: '14px',
+    fontSizeMedium: '14px',
+    heightMedium: '36px',
+    fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+    fontFamilyMono: 'JetBrains Mono, Fira Code, Consolas, monospace',
+  },
+  Layout: {
+    color: '#f5f7fa',
+    siderColor: '#ffffff',
+    headerColor: '#f5f7fa',
+  },
+  Menu: {
+    itemTextColorActive: PRESALES_TEAL,
+    itemTextColorActiveHover: PRESALES_TEAL_HOVER,
+    itemTextColorChildActive: PRESALES_TEAL,
+    itemIconColorActive: PRESALES_TEAL,
+    itemIconColorActiveHover: PRESALES_TEAL_HOVER,
+    itemColorActive: 'rgba(0, 153, 153, 0.1)',
+    itemColorActiveHover: 'rgba(0, 153, 153, 0.14)',
+    arrowColorActive: PRESALES_TEAL,
+  },
+  Button: {
+    textColorPrimary: '#ffffff',
+    colorPrimary: PRESALES_TEAL,
+    colorHoverPrimary: PRESALES_TEAL_HOVER,
+    colorPressedPrimary: PRESALES_TEAL_PRESSED,
+    borderRadiusMedium: '6px',
+  },
+  Input: {
+    color: '#ffffff',
+    colorFocus: '#ffffff',
+    border: '1px solid #dde3ea',
+    borderHover: '1px solid #8896a6',
+    borderFocus: `1px solid ${PRESALES_TEAL}`,
+    placeholderColor: '#8896a6',
+    caretColor: '#1a1a2e',
+  },
+  Card: {
+    color: '#ffffff',
+    borderColor: '#dde3ea',
+  },
+  Modal: {
+    color: '#ffffff',
+  },
+  Tag: {
+    borderRadius: '6px',
+  },
+  DataTable: {
+    thColor: '#f8fafb',
+    tdColor: '#ffffff',
+    borderColor: '#e8ecf0',
+  },
+}
+
 export const lightThemeOverrides: GlobalThemeOverrides = {
   common: {
     primaryColor: '#333333',
@@ -146,7 +226,8 @@ export const darkThemeOverrides: GlobalThemeOverrides = {
   },
 }
 
-export function getThemeOverrides(isDark: boolean, isComic?: boolean): GlobalThemeOverrides {
+export function getThemeOverrides(isDark: boolean, isComic?: boolean, isPresales?: boolean): GlobalThemeOverrides {
+  if (isPresales && !isDark) return presalesThemeOverrides
   const base = isDark ? darkThemeOverrides : lightThemeOverrides
   if (!isComic) return base
   const comicFont = "'Comic Neue', 'ZCOOL KuaiLe', 'Zen Maru Gothic', 'Gaegu', cursive, sans-serif"
