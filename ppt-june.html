@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>径硕科技 · 6月份汇报</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#0a0a0a;color:#fff;overflow:hidden}
+.slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;height:100vh;scroll-behavior:smooth}
+.s{min-width:100vw;height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:5vw 7vw;position:relative}
+.hero{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+.light{background:#f6f7f9;color:#1a1a2e}
+.dark{background:#1a1a2e}
+.accent{background:linear-gradient(135deg,#0f3460 0%,#1a1a2e 100%)}
+h1{font-size:min(5vw,9vh);font-weight:200;line-height:1.1;margin-bottom:2vh}
+h2{font-size:min(3vw,5.5vh);font-weight:300;margin-bottom:3vh}
+h3{font-size:min(1.6vw,3vh);font-weight:500;color:#e94560;margin-bottom:1.5vh}.light h3{color:#0f3460}
+h4{font-size:min(1.2vw,2.4vh);font-weight:500;margin-bottom:1vh}
+p,li{font-size:min(1.2vw,2.3vh);line-height:1.7;color:#b0b0b0;max-width:90%}.light p,.light li{color:#555}
+.note{font-size:min(0.85vw,1.6vh);color:#888;margin-top:1.5vh}
+.kpi-row{display:flex;gap:2vw;margin:3vh 0}
+.kpi{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);padding:1.8vw 2vw;flex:1}.light .kpi{background:#fff;border-color:#e0e0e0}
+.kpi-n{font-size:min(3.5vw,6.5vh);font-weight:200;color:#e94560}.kpi-l{font-size:min(0.9vw,1.7vh);color:#888}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:2.5vw}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:2vw}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5vw}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:1.8vw}.light .card{background:#fff;border-color:#e0e0e0}
+.tbl{width:100%;border-collapse:collapse;font-size:min(1vw,2vh);margin-top:2vh}
+.tbl th{text-align:left;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.1);color:#888;font-weight:400}
+.tbl td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}.light .tbl td{border-color:#eee}
+.tag{display:inline-block;padding:3px 10px;font-size:11px;margin:2px}.tag-r{border-left:3px solid #e94560}.tag-b{border-left:3px solid #0f3460}
+.nav{position:fixed;bottom:3vh;right:3vw;display:flex;gap:8px;z-index:100}
+.nav button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;width:32px;height:32px;cursor:pointer;font-size:14px}.light .nav button{background:rgba(0,0,0,0.04);border-color:#ccc;color:#333}
+.foot{position:absolute;bottom:2.5vh;left:7vw;font-size:10px;color:#555}
+hr{border:none;border-top:1px solid rgba(255,255,255,0.1);margin:2vh 0}.light hr{border-color:#ddd}
+</style>
+</head>
+<body>
+<div class="slides" id="slides">
+
+<!-- P1: Cover -->
+<section class="s hero">
+  <div style="font-size:10px;color:#e94560;letter-spacing:4px;margin-bottom:2vh">JINGDIGITAL · 产品研发</div>
+  <h1>6月份汇报</h1>
+  <p style="font-size:min(1.5vw,3vh)">产品策略 · CDP · AgentHub · 定制产品</p>
+  <div class="note" style="margin-top:6vh">径硕科技 JINGdigital · 2026年6月</div>
+</section>
+
+<!-- P2: Product Strategy -->
+<section class="s light">
+  <h2>一 · 产品策略</h2>
+  <div class="grid-3">
+    <div class="card"><div class="kpi-n" style="font-size:2.5vw">🚢</div><h4>CDP 航空母舰</h4><p>数据中台底座<br>多对象管理 · OneID · 标签/分群引擎<br>Doris/Kafka/Redis/Flink</p></div>
+    <div class="card"><div class="kpi-n" style="font-size:2.5vw">⚓</div><h4>定制产品 驱逐舰</h4><p>行业解决方案<br>东区/北区/南区 · LE客户群<br>系统对接 · 小程序定制</p></div>
+    <div class="card"><div class="kpi-n" style="font-size:2.5vw">🤖</div><h4>AgentHub 驱逐舰</h4><p>AI Agent 平台<br>SDR/定开/MA/Service/SEO Agent<br>智能对话 · 知识库</p></div>
+  </div>
+  <hr>
+  <p><strong>舰队协同</strong>：CDP提供数据底座 → 定制产品承载行业场景 → AgentHub驱动AI能力</p>
+  <div class="note">6月份任务总计 34 个 | 12 已排期 · 8 待排期 · 14 待确认</div>
+</section>
+
+<!-- P3: CDP -->
+<section class="s dark">
+  <h2>二 · CDP</h2>
+  <div class="kpi-row"><div class="kpi"><div class="kpi-n">12</div><div class="kpi-l">排期任务</div></div><div class="kpi"><div class="kpi-n">6</div><div class="kpi-l">已排期</div></div><div class="kpi"><div class="kpi-n">1</div><div class="kpi-l">待排期</div></div><div class="kpi"><div class="kpi-n">5</div><div class="kpi-l">待确认</div></div></div>
+  <div style="margin-top:3vh">
+    <h3>核心进展</h3>
+    <div class="grid-2">
+      <div>
+        <p>✅ 京东物流：表单创建线索池 / 外采数据过滤CRM</p>
+        <p>✅ 英伟达：Tableau-S3 SDK / 微页SSO / Discover同步</p>
+        <p>⬜ 英飞凌MarTech SAL连接 / Activity Dashboard</p>
+      </div>
+      <div>
+        <p>⬜ KPMG SFoA系统对接</p>
+        <p>⬜ 舒万诺JINTI数据迁移</p>
+        <p>⬜ 西门子Xcelerator官网埋点API接入</p>
+      </div>
+    </div>
+  </div>
+  <hr>
+  <div class="note">Doris点查询 <5ms · 标签计算 <20min · 3对象筛选 <10s</div>
+</section>
+
+<!-- P4: AgentHub Overview -->
+<section class="s accent">
+  <div style="font-size:10px;color:#e94560;letter-spacing:4px;margin-bottom:2vh">LINE 3</div>
+  <h1>三 · AgentHub</h1>
+  <p style="font-size:min(1.6vw,3vh)">AI Agent 平台 · 6大Agent覆盖 · 43个交付客户</p>
+</section>
+
+<!-- P5: Agent Distribution -->
+<section class="s light">
+  <h2>Agent 分布</h2>
+  <table class="tbl">
+    <tr><th>Agent类型</th><th>客户数</th><th>占比</th><th>代表客户</th></tr>
+    <tr><td><span class="tag tag-r">SDR Agent</span></td><td><strong>25</strong></td><td>58%</td><td>凯爱瑞 · 嘉立创 · 药明康德 · NVIDIA</td></tr>
+    <tr><td><span class="tag tag-b">定开Agent</span></td><td>8</td><td>19%</td><td>库波森 · 福禄克 · 英飞凌 · 海能达</td></tr>
+    <tr><td>SEO Agent</td><td>5</td><td>12%</td><td>润建 · 树根 · 香港电讯 · 中海达 · SMC</td></tr>
+    <tr><td>Service Agent</td><td>3</td><td>7%</td><td>安利 · 美沃奇 · 中望软件</td></tr>
+    <tr><td>Sales Agent</td><td>1</td><td>2%</td><td>丹纳赫</td></tr>
+    <tr><td>Nioji</td><td>1</td><td>2%</td><td>深信服</td></tr>
+  </table>
+</section>
+
+<!-- P6: Client Stages -->
+<section class="s dark">
+  <h2>各阶段客户明细</h2>
+  <div class="kpi-row"><div class="kpi"><div class="kpi-n">4</div><div class="kpi-l">POC已交付</div></div><div class="kpi"><div class="kpi-n">16</div><div class="kpi-l">实施交付</div></div><div class="kpi"><div class="kpi-n">21</div><div class="kpi-l">客户调研</div></div><div class="kpi"><div class="kpi-n">1</div><div class="kpi-l">商务流程</div></div></div>
+  <div style="margin-top:3vh">
+    <p><strong>POC已交付</strong>：美沃奇 · 英迈 · 德必 · Autodesk</p>
+    <p><strong>实施交付阶段</strong>：嘉立创 · 库波森 · 凯爱瑞 · 福禄克 · ADI · 药明生物 · 药明康德 · 龙沙 · NVIDIA · JING官网 · 金蝶 · 任仕达 · 龙沙二期 · 海南比科大 · 英富曼-CPHI（共16个）</p>
+    <p><strong>客户调研阶段</strong>：西门子 · All 4 Green · 美的工业 · CCF · 锐捷 · 赛诺龙 · 丹纳赫 · 数智范式 · 赛多利斯 · 艾利丹尼森 · 海能达 · 西门子Xcelerator · 爱美客 · 京东 · 深信服 · 润建 · 树根 · 香港电讯 · 中海达 · SMC · 安利（共21个）</p>
+    <p><strong>商务流程中</strong>：中望软件</p>
+  </div>
+</section>
+
+<!-- P7: Key Findings -->
+<section class="s light">
+  <h2>关键发现</h2>
+  <table class="tbl">
+    <tr><th style="width:60px">发现</th><th>说明</th></tr>
+    <tr><td style="color:#22c55e">✅</td><td><strong>SDR Agent 占比最高（58%）</strong> — 产品化程度高，交付标准化</td></tr>
+    <tr><td style="color:#f59e0b">⚠️</td><td><strong>49% 客户仍在调研阶段</strong> — 需加速POC转化</td></tr>
+    <tr><td style="color:#ef4444">⚠️</td><td><strong>付小龙负载过重</strong> — 12个项目需分流</td></tr>
+    <tr><td style="color:#3b82f6">🆕</td><td><strong>SEO Agent 新业务线</strong> — 5个客户均在方案评估</td></tr>
+    <tr><td style="color:#22c55e">✅</td><td><strong>交付率65%</strong> — 28/43已正式交付</td></tr>
+  </table>
+</section>
+
+<!-- P8: Custom Products -->
+<section class="s dark">
+  <h2>四 · 定制产品</h2>
+  <div class="kpi-row"><div class="kpi"><div class="kpi-n">19</div><div class="kpi-l">排期任务</div></div><div class="kpi"><div class="kpi-n">4</div><div class="kpi-l">已排期</div></div><div class="kpi"><div class="kpi-n">7</div><div class="kpi-l">待排期</div></div><div class="kpi"><div class="kpi-n">8</div><div class="kpi-l">待确认</div></div></div>
+  <div style="margin-top:3vh">
+    <h3>按战区分</h3>
+    <div class="grid-3">
+      <div><p><strong>东区 (苗学松/陈俊)</strong></p><p>英飞凌×7 · 舒万诺 · 默沙东 · 拜耳 · 埃森哲</p></div>
+      <div><p><strong>华北 (陆帅灵)</strong></p><p>英伟达 · 特殊陶业</p></div>
+      <div><p><strong>华南 (林文豪)</strong></p><p>金蝶 · 德尚 · 丰泊 · 润建</p></div>
+    </div>
+  </div>
+  <hr>
+  <div class="note">🆕 SEO Agent 新业务线 — 5个客户均在方案评估阶段</div>
+</section>
+
+<!-- P9: Summary -->
+<section class="s hero">
+  <h1>总结</h1>
+  <div class="grid-2" style="margin-top:3vh">
+    <div class="card" style="background:rgba(255,255,255,0.08)">
+      <h3>产品侧</h3>
+      <p>▸ CDP数据中台底座稳定（<5ms / <20min / <10s）</p>
+      <p>▸ AgentHub 6大Agent覆盖43个客户</p>
+      <p>▸ SDR Agent产品化程度最高（58%占比）</p>
+      <p>▸ 定制产品按战区推进，东区任务最重</p>
+    </div>
+    <div class="card" style="background:rgba(255,255,255,0.08)">
+      <h3>交付侧</h3>
+      <p>▸ 28/43已正式交付（65%）</p>
+      <p>▸ 16个在实施中，21个待POC转化</p>
+      <p>▸ 付小龙12个项目需分流</p>
+      <p>▸ SEO Agent新业务线需验证</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:6vh;font-size:min(1vw,2vh)">「观察、快速、猛攻」— 苏沃洛夫《制胜的科学》</div>
+</section>
+
+</div>
+<nav class="nav"><button onclick="prev()">←</button><button onclick="next()">→</button></nav>
+<script>
+const s=document.getElementById('slides');
+function next(){s.scrollBy({left:innerWidth,behavior:'smooth'})}
+function prev(){s.scrollBy({left:-innerWidth,behavior:'smooth'})}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+</script>
+</body>
+</html>
