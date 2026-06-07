@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>径硕CDP vs 火山VeCDP · 综合对比</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#0a0a0a;color:#fff;overflow:hidden}
+.slides{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;height:100vh;scroll-behavior:smooth}
+.s{min-width:100vw;height:100vh;scroll-snap-align:start;display:flex;flex-direction:column;justify-content:center;padding:5vw 7vw;position:relative}
+.hero{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+.light{background:#f6f7f9;color:#1a1a2e}
+.dark{background:#1a1a2e}
+.accent{background:linear-gradient(135deg,#0f3460 0%,#1a1a2e 100%)}
+h1{font-size:min(5vw,9vh);font-weight:200;line-height:1.1;margin-bottom:2vh}
+h2{font-size:min(2.8vw,5.5vh);font-weight:300;margin-bottom:3vh}
+h3{font-size:min(1.5vw,3vh);font-weight:500;color:#e94560;margin-bottom:1.5vh}.light h3{color:#0f3460}
+p,li{font-size:min(1.15vw,2.2vh);line-height:1.7;color:#b0b0b0;max-width:90%}.light p,.light li{color:#555}
+.note{font-size:min(0.85vw,1.6vh);color:#888;margin-top:1.5vh}
+.sm{font-size:min(0.9vw,1.8vh);color:#888;margin-top:0.8vh}
+.kpi-row{display:flex;gap:2vw;margin:3vh 0}
+.kpi{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);padding:1.5vw 2vw;flex:1}.light .kpi{background:#fff;border-color:#e0e0e0}
+.kpi-n{font-size:min(3.5vw,6.5vh);font-weight:200;color:#e94560}.kpi-l{font-size:min(0.9vw,1.7vh);color:#888}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:2.5vw}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.8vw}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:1.5vw}.light .card{background:#fff;border-color:#e0e0e0}
+.tbl{width:100%;border-collapse:collapse;font-size:min(0.95vw,1.9vh);margin-top:2vh}
+.tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.1);color:#888;font-weight:400}
+.tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.05)}.light .tbl td{border-color:#eee}
+.tbl .g{color:#22c55e}.tbl .r{color:#e94560}.tbl .y{color:#f59e0b}
+.bar{height:6px;background:rgba(255,255,255,0.06);margin:0.8vh 0;position:relative}.light .bar{background:#eee}
+.bar-f{height:100%}.bar-f.r{background:#e94560}.bar-f.b{background:#0f3460}
+.fbar{display:flex;align-items:center;gap:1vw;margin:1vh 0}
+.fbar-l{width:120px;font-size:min(0.85vw,1.7vh);text-align:right;color:#888}
+.call{background:rgba(255,255,255,0.06);border-left:3px solid #e94560;padding:1.5vw 2vw;margin:2vh 0}.light .call{background:#f0f0f0}
+.q{font-size:min(1.4vw,2.6vh);color:#e94560;margin-bottom:0.5vh}.light .q{color:#0f3460}
+.nav{position:fixed;bottom:3vh;right:3vw;display:flex;gap:8px;z-index:100}
+.nav button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;width:32px;height:32px;cursor:pointer;font-size:14px}.light .nav button{background:rgba(0,0,0,0.04);border-color:#ccc;color:#333}
+</style>
+</head>
+<body>
+<div class="slides" id="slides">
+
+<!-- P1: Cover -->
+<section class="s hero">
+  <div style="font-size:10px;color:#e94560;letter-spacing:4px;margin-bottom:2vh">JINGDIGITAL · 竞品分析</div>
+  <h1>径硕CDP<br>vs 火山VeCDP</h1>
+  <p style="font-size:min(1.4vw,2.6vh);margin-top:2vh">综合对比反馈 · CTO方案校验 · 差异化策略</p>
+  <div class="note" style="margin-top:6vh">内部参考 | 2026年6月</div>
+</section>
+
+<!-- P2: CTO Accuracy Check -->
+<section class="s light">
+  <h2>一 · CTO方案准确性校验</h2>
+  <div class="grid-2">
+    <div>
+      <h3>✅ 说对了的（5/5）</h3>
+      <p>▸ 火山以"用户"为唯一核心实体（不支持多对象）</p>
+      <p>▸ 技术栈=ByteHouse+Kafka+豆包</p>
+      <p>▸ 支持10种标签类型</p>
+      <p>▸ 点查<5ms</p>
+      <p>▸ 不支持跨对象筛选</p>
+    </div>
+    <div>
+      <h3>⚠️ 需要修正的（4处）</h3>
+      <p>▸ 查询性能被低估（点查≠通用查询）</p>
+      <p>▸ AI能力远不止"豆包大模型"</p>
+      <p>▸ 部署模式不止私有化（3种模式）</p>
+      <p>▸ 有完整数据质量管理+分析模型体系</p>
+    </div>
+  </div>
+</section>
+
+<!-- P3: Performance Correction -->
+<section class="s dark">
+  <h2>关键修正1 · 查询性能不可只看点查</h2>
+  <table class="tbl">
+    <tr><th>场景</th><th>VeCDP</th><th>CTO说的</th><th>差距</th></tr>
+    <tr><td>点查（单用户）</td><td class="g">P50<5ms</td><td>P50<5ms</td><td class="g">持平</td></tr>
+    <tr><td>标签查询（日常操作）</td><td class="y">1-3秒</td><td>未提</td><td class="r">⚠️ 客户感知的重点</td></tr>
+    <tr><td>复杂聚合</td><td class="y">约5秒</td><td>未提</td><td class="r">⚠️</td></tr>
+    <tr><td>批量标签计算（亿级×100）</td><td class="g"><30min</td><td><30min</td><td class="g">持平</td></tr>
+  </table>
+  <div class="call" style="margin-top:3vh">
+    <p>🔥 如果径硕CDP只对标了点查<5ms，但日常标签查询要5-10秒而火山只要1-3秒——这个差距客户会感知到。</p>
+  </div>
+</section>
+
+<!-- P4: AI Correction -->
+<section class="s dark">
+  <h2>关键修正2 · AI能力不是"接个大模型"</h2>
+  <p style="margin-bottom:2vh">CTO原话："火山有豆包大模型，径硕可集成DeepSeek/通义千问实现同等能力"</p>
+  <div class="grid-2">
+    <div class="card">
+      <h3>火山VeCDP AI Agent（已产品化）</h3>
+      <p>▸ 自然语言圈群：完整对话式交互</p>
+      <p>▸ 智能群体洞察：自动分析+生成结论</p>
+      <p>▸ 一键生成报告</p>
+      <p>▸ 底层：ReAct/Plan-and-Execute框架</p>
+      <p class="r" style="margin-top:1vh">不是"接个API"能做到的</p>
+    </div>
+    <div class="card">
+      <h3>"接入大模型" vs "AI Agent产品"</h3>
+      <p>▸ NL圈群需要：意图识别→消歧→多轮对话→规则生成→结果展示</p>
+      <p>▸ 智能洞察需要：行业模板+自动撰写+业务语言转化</p>
+      <p>▸ 安全护栏需要：确认+回滚+权限</p>
+      <p class="r" style="margin-top:1vh">产品定义+工程落地 >> API调用</p>
+    </div>
+  </div>
+</section>
+
+<!-- P5: Soft Power -->
+<section class="s light">
+  <h2>关键修正3&4 · 数据质量 + 分析模型 + 部署模式</h2>
+  <div class="grid-2">
+    <div>
+      <h3>火山VeCDP的"软实力"</h3>
+      <p>▸ <strong>数据质量</strong>：实时校验/去重/异常检测/全链路血缘</p>
+      <p>▸ <strong>分析模型</strong>：漏斗/留存/桑基图/归因(多种)/LTV/分布/对比</p>
+      <p>▸ <strong>7种分群</strong>：规则/Lookalike/排期/SQL/AI/上传/组合</p>
+      <p>▸ <strong>广告闭环</strong>：巨量引擎/腾讯/快手等平台对接+效果回流</p>
+    </div>
+    <div>
+      <h3>部署模式对比</h3>
+      <table class="tbl"><tr><th>模式</th><th>火山</th><th>径硕</th></tr>
+      <tr><td>SaaS</td><td class="g">✅</td><td class="g">✅</td></tr>
+      <tr><td>云托管</td><td class="g">✅</td><td class="r">❌</td></tr>
+      <tr><td>私有化</td><td class="g">✅</td><td class="g">✅</td></tr></table>
+      <p class="note" style="margin-top:1vh">火山产品化成熟度更高——三档定位清晰</p>
+    </div>
+  </div>
+</section>
+
+<!-- P6: Real Gap Map -->
+<section class="s accent">
+  <div style="font-size:10px;color:#e94560;letter-spacing:4px;margin-bottom:2vh">PART 2</div>
+  <h1>真实差距地图</h1>
+</section>
+
+<!-- P7: Hard Metrics -->
+<section class="s dark">
+  <h2>硬指标对比</h2>
+  <table class="tbl">
+    <tr><th>维度</th><th>火山VeCDP</th><th>径硕CTO方案</th><th>差距</th><th>紧迫度</th></tr>
+    <tr><td>通用标签查询</td><td>1-3秒</td><td>未明确（可能>3秒）</td><td class="r">🔴 落后</td><td>高</td></tr>
+    <tr><td>点查P50</td><td><5ms</td><td><5ms</td><td class="g">🟢 持平</td><td>—</td></tr>
+    <tr><td>批量标签计算(亿×100)</td><td><30min</td><td><20min</td><td class="g">🟢 略优</td><td>—</td></tr>
+    <tr><td>实时标签更新</td><td><5秒</td><td><3秒</td><td class="g">🟢 持平</td><td>—</td></tr>
+    <tr><td>OneID生成</td><td>秒级</td><td><10ms</td><td class="g">🟢 略优</td><td>—</td></tr>
+    <tr><td>SLA</td><td>99.95%</td><td>99.95%</td><td class="g">🟢 持平</td><td>—</td></tr>
+    <tr><td>数据源接入</td><td>20+种</td><td>未提（<10种）</td><td class="y">🟡 落后</td><td>中</td></tr>
+  </table>
+</section>
+
+<!-- P8: Differentiation Matrix -->
+<section class="s light">
+  <h2>差异化矩阵 · 谁赢什么</h2>
+  <table class="tbl">
+    <tr><th>能力</th><th>火山</th><th>径硕</th><th>谁赢</th></tr>
+    <tr><td>AI Agent（NL圈群/洞察）</td><td>✅ 成熟</td><td>Phase 3</td><td class="r">🔴 火山</td></tr>
+    <tr><td>多对象管理（人货场）</td><td>❌</td><td>Phase 2 独家</td><td class="g">🟢 径硕</td></tr>
+    <tr><td>数据质量管理+血缘</td><td>✅</td><td>未知</td><td class="r">🔴 火山</td></tr>
+    <tr><td>分析模型（8种）</td><td>✅</td><td>未知</td><td class="r">🔴 火山</td></tr>
+    <tr><td>广告投放闭环</td><td>✅ 5+平台</td><td>未知</td><td class="r">🔴 火山</td></tr>
+    <tr><td>BI生态</td><td>自研</td><td>观远BI</td><td class="g">🟢 径硕</td></tr>
+    <tr><td>B2B MA集成</td><td>❌ 弱</td><td>✅ 强</td><td class="g">🟢 径硕</td></tr>
+    <tr><td>5个行业AI Agent</td><td>❌</td><td>✅</td><td class="g">🟢 径硕</td></tr>
+    <tr><td>部署模式</td><td>3种</td><td>2种</td><td class="y">🟡 火山</td></tr>
+  </table>
+</section>
+
+<!-- P9: Firepower Distribution -->
+<section class="s dark">
+  <h2>火力分布图</h2>
+  <div class="grid-2">
+    <div>
+      <h3>火山VeCDP 优势火力</h3>
+      <div class="fbar"><span class="fbar-l">AI Agent</span><div class="bar" style="flex:1"><div class="bar-f r" style="width:90%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">数据整合</span><div class="bar" style="flex:1"><div class="bar-f r" style="width:75%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">分析模型</span><div class="bar" style="flex:1"><div class="bar-f r" style="width:75%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">广告闭环</span><div class="bar" style="flex:1"><div class="bar-f r" style="width:65%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">查询性能</span><div class="bar" style="flex:1"><div class="bar-f r" style="width:55%"></div></div></div>
+    </div>
+    <div>
+      <h3>径硕 优势火力</h3>
+      <div class="fbar"><span class="fbar-l">多对象管理</span><div class="bar" style="flex:1"><div class="bar-f b" style="width:90%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">MA+CDP一体</span><div class="bar" style="flex:1"><div class="bar-f b" style="width:80%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">5个AI Agent</span><div class="bar" style="flex:1"><div class="bar-f b" style="width:75%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">观远BI</span><div class="bar" style="flex:1"><div class="bar-f b" style="width:65%"></div></div></div>
+      <div class="fbar"><span class="fbar-l">OneID性能</span><div class="bar" style="flex:1"><div class="bar-f b" style="width:60%"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- P10: Recommendations -->
+<section class="s accent">
+  <div style="font-size:10px;color:#e94560;letter-spacing:4px;margin-bottom:2vh">PART 3</div>
+  <h1>关键修正建议</h1>
+</section>
+
+<!-- P11: Phase Adjustments -->
+<section class="s light">
+  <h2>Phase 1 & 3 调整建议</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Phase 1：补充"软实力"</h3>
+      <p>当前：标签计算+OneID性能</p>
+      <p class="r">增加：</p>
+      <p>▸ 数据源接入：当前几种→至少10种</p>
+      <p>▸ 分析模型：优先补漏斗+归因分析</p>
+    </div>
+    <div class="card">
+      <h3>Phase 3：AI分级规划</h3>
+      <p class="r">从"接入大模型"→ 三级：</p>
+      <p>▸ L1：API接入+Prompt（原型）</p>
+      <p>▸ L2：RAG知识增强（中期）</p>
+      <p>▸ L3：独立AI Agent产品（长期）</p>
+      <p class="r" style="margin-top:1vh">工期建议：2月→3月</p>
+    </div>
+  </div>
+  <div class="call" style="margin-top:2vh">
+    <p class="q">差异化叙事</p>
+    <p>"火山的AI在CDP内部强，径硕的AI从CDP到MA全链路强——不是一个AI，是5个AI联合作战"</p>
+  </div>
+</section>
+
+<!-- P12: Sales Scripts -->
+<section class="s dark">
+  <h2>销售话术 · 当客户问"你们和火山CDP有什么区别"</h2>
+  <div class="grid-2">
+    <div class="call"><p class="q">客户只看CDP功能</p><p>"火山AI圈群功能更好，但只能管用户。如果您需要管门店/商品/车辆的关联分析——径硕是唯一选择"</p></div>
+    <div class="call"><p class="q">客户看重AI</p><p>"火山CDP内部AI很聪明，但径硕AI从CDP延伸到邮件/客服/SEO——5个AI联合作战"</p></div>
+    <div class="call"><p class="q">客户看重价格透明</p><p>"火山定价是定制化商务报价。径硕价格透明，您知道花钱买了什么"</p></div>
+    <div class="call"><p class="q">客户看重速度</p><p>"标签查询火山1-3秒，径硕持平。但径硕独有的多对象+MA闭环——火山做不到"</p></div>
+  </div>
+</section>
+
+<!-- P13: Summary -->
+<section class="s hero">
+  <h1>总结</h1>
+  <div class="grid-2" style="margin-top:3vh">
+    <div class="card" style="background:rgba(255,255,255,0.08)">
+      <h3>火山VeCDP</h3>
+      <p>技术强（ByteHouse+豆包AI）</p>
+      <p>生态全（20+数据源+8种分析+广告闭环）</p>
+      <p>AI Agent产品化成熟</p>
+      <p>部署模式丰富（3种）</p>
+    </div>
+    <div class="card" style="background:rgba(255,255,255,0.08)">
+      <h3>径硕</h3>
+      <p>差异化（多对象+MA闭环+5个Agent）</p>
+      <p>服务深（B2B场景独占）</p>
+      <p>BI生态灵活（观远）</p>
+      <p>价格透明</p>
+    </div>
+  </div>
+  <div class="call" style="margin-top:3vh;background:rgba(255,255,255,0.08)">
+    <p>"不用给客户讲'我们的CDP和火山性能一样'——要讲'火山有的我们有，火山没有的我们也有'"</p>
+  </div>
+  <div class="note" style="margin-top:4vh">CTO方案需修正三点：通用查询性能对标 · AI能力分级规划 · 软实力补课</div>
+</section>
+
+</div>
+<nav class="nav"><button onclick="prev()">←</button><button onclick="next()">→</button></nav>
+<script>
+const s=document.getElementById('slides');
+function next(){s.scrollBy({left:innerWidth,behavior:'smooth'})}
+function prev(){s.scrollBy({left:-innerWidth,behavior:'smooth'})}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+</script>
+</body>
+</html>
