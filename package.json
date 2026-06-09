@@ -65,6 +65,7 @@
     "docker:recreate": "docker compose up -d --force-recreate",
     "deploy:hot": "node scripts/hot-deploy.mjs",
     "deploy:hot:fast": "node scripts/hot-deploy.mjs --skip-build",
+    "provision:tenant": "node scripts/provision-tenant.mjs",
     "claude": "claude --dangerously-skip-permissions"
   },
   "files": [

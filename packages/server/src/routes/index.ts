@@ -39,6 +39,7 @@ import { mcpRoutes } from './hermes/mcp'
 import { presalesKnowledgeRoutes } from './presales/knowledge'
 import { presalesOpportunityRoutes } from './presales/opportunities'
 import { presalesContentRoutes } from './presales/content'
+import { presalesTenantRoutes } from './presales/tenants'
 
 /**
  * Register all routes on the Koa app.
@@ -88,6 +89,7 @@ export function registerRoutes(app: any, authMiddleware: Array<(ctx: Context, ne
   app.use(presalesKnowledgeRoutes.routes())     // Presales knowledge base
   app.use(presalesOpportunityRoutes.routes()) // Presales opportunities (profile-backed)
   app.use(presalesContentRoutes.routes())       // Presales content drafts (profile-backed)
+  app.use(presalesTenantRoutes.routes())        // Presales tenant provisioning
   app.use(proxyRoutes.routes())
 
   // Proxy catch-all middleware (must be last)
