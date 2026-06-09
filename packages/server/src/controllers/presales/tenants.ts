@@ -33,22 +33,44 @@ export async function list(ctx: Context) {
   }
 
   try {
+    const query = user.role === 'super_admin'
+      ? `SELECT
+           t.id AS tenant_id,
+           t.slug AS tenant_slug,
+           t.name AS tenant_name,
+           t.hermes_profile_name,
+           COALESCE(ta.id, '') AS account_id,
+           COALESCE(ta.role::text, 'owner') AS role,
+           COALESCE(ta.is_tenant_owner, true) AS is_tenant_owner
+         FROM tenants t
+         LEFT JOIN LATERAL (
+           SELECT id, role, is_tenant_owner
+           FROM tenant_accounts
+           WHERE tenant_id = t.id
+             AND status = 'active'
+           ORDER BY is_tenant_owner DESC, created_at ASC
+           LIMIT 1
+         ) ta ON true
+         WHERE t.status = 'active'
+         ORDER BY t.created_at ASC`
+      : `SELECT
+           t.id AS tenant_id,
+           t.slug AS tenant_slug,
+           t.name AS tenant_name,
+           t.hermes_profile_name,
+           ta.id AS account_id,
+           ta.role,
+           ta.is_tenant_owner
+         FROM tenant_accounts ta
+         JOIN tenants t ON t.id = ta.tenant_id
+         WHERE ta.webui_user_id = $1
+           AND ta.status = 'active'
+           AND t.status = 'active'
+         ORDER BY ta.is_tenant_owner DESC, ta.created_at ASC`
+
     const { rows } = await pgQuery<TenantListRow>(
-      `SELECT
-         t.id AS tenant_id,
-         t.slug AS tenant_slug,
-         t.name AS tenant_name,
-         t.hermes_profile_name,
-         ta.id AS account_id,
-         ta.role,
-         ta.is_tenant_owner
-       FROM tenant_accounts ta
-       JOIN tenants t ON t.id = ta.tenant_id
-       WHERE ta.webui_user_id = $1
-         AND ta.status = 'active'
-         AND t.status = 'active'
-       ORDER BY ta.is_tenant_owner DESC, ta.created_at ASC`,
-      [user.id],
+      query,
+      user.role === 'super_admin' ? [] : [user.id],
     )
     ctx.body = { tenants: rows.map(mapTenantRow) }
   } catch (err: any) {

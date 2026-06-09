@@ -72,6 +72,73 @@ export async function resolvePresalesTenantForUser(
   }
 }
 
+interface SuperAdminTenantRow {
+  tenant_id: string
+  tenant_slug: string
+  tenant_name: string
+  hermes_profile_name: string
+  account_id: string | null
+  owner_username: string | null
+}
+
+export async function resolvePresalesTenantForSuperAdmin(
+  user: { id: number; username: string },
+  tenantSlug?: string,
+): Promise<PresalesTenantContext | null> {
+  const params: unknown[] = []
+  let slugFilter = "WHERE t.status = 'active'"
+  if (tenantSlug) {
+    params.push(tenantSlug)
+    slugFilter = "WHERE t.slug = $1 AND t.status = 'active'"
+  }
+
+  const { rows } = await pgQuery<SuperAdminTenantRow>(
+    `SELECT
+       t.id AS tenant_id,
+       t.slug AS tenant_slug,
+       t.name AS tenant_name,
+       t.hermes_profile_name,
+       ta.id AS account_id,
+       ta.username AS owner_username
+     FROM tenants t
+     LEFT JOIN LATERAL (
+       SELECT id, username
+       FROM tenant_accounts
+       WHERE tenant_id = t.id
+         AND status = 'active'
+       ORDER BY is_tenant_owner DESC, created_at ASC
+       LIMIT 1
+     ) ta ON true
+     ${slugFilter}
+     ORDER BY t.created_at ASC
+     LIMIT 1`,
+    params,
+  )
+
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    tenantId: row.tenant_id,
+    tenantSlug: row.tenant_slug,
+    tenantName: row.tenant_name,
+    hermesProfileName: row.hermes_profile_name,
+    accountId: row.account_id || '',
+    webuiUserId: user.id,
+    username: user.username,
+  }
+}
+
+export async function resolvePresalesTenant(
+  user: { id: number; username: string; role: string },
+  tenantSlug?: string,
+): Promise<PresalesTenantContext | null> {
+  const memberTenant = await resolvePresalesTenantForUser(user.id, tenantSlug)
+  if (memberTenant) return memberTenant
+  if (user.role !== 'super_admin') return null
+  return resolvePresalesTenantForSuperAdmin(user, tenantSlug)
+}
+
 declare module 'koa' {
   interface DefaultState {
     presalesTenant?: PresalesTenantContext
@@ -87,7 +154,7 @@ export async function requirePresalesTenant(ctx: Context, next: () => Promise<vo
   }
 
   try {
-    const tenant = await resolvePresalesTenantForUser(user.id, requestedTenantSlug(ctx) || undefined)
+    const tenant = await resolvePresalesTenant(user, requestedTenantSlug(ctx) || undefined)
     if (!tenant) {
       ctx.status = 403
       ctx.body = { error: 'No active presales tenant is available for this account' }

@@ -188,9 +188,23 @@ async function main() {
   const tenant = provision.tenant
   console.log(JSON.stringify(tenant, null, 2))
 
+  let verifyToken = token
+  if (!options.ownerSelf) {
+    step(`Login as tenant owner ${options.ownerUser}`)
+    const ownerLogin = await requestJson(options.baseUrl, '/api/auth/login', {
+      method: 'POST',
+      body: {
+        username: options.ownerUser,
+        password: options.ownerPass,
+      },
+    })
+    verifyToken = ownerLogin.token
+    if (!verifyToken) throw new Error('Owner login succeeded but no token was returned')
+  }
+
   step('Verify presales profile manifest')
   const manifest = await requestJson(options.baseUrl, '/api/presales/profile-manifest', {
-    token,
+    token: verifyToken,
     headers: {
       'X-Tenant-Slug': tenant.tenantSlug,
       'X-Hermes-Profile': tenant.hermesProfileName,
@@ -199,8 +213,8 @@ async function main() {
   console.log(`manifest.profile=${manifest.manifest?.profile}`)
   console.log(`manifest.directories.presalesRoot=${manifest.manifest?.directories?.presalesRoot}`)
 
-  step('List tenants visible to super admin')
-  const listed = await requestJson(options.baseUrl, '/api/presales/tenants', { token })
+  step('List tenants visible to owner')
+  const listed = await requestJson(options.baseUrl, '/api/presales/tenants', { token: verifyToken })
   console.log(JSON.stringify(listed.tenants, null, 2))
 
   console.log('\nDone.')
