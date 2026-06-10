@@ -10,6 +10,8 @@ presalesContentRoutes.get('/api/presales/content/:id/preview', requirePresalesTe
 presalesContentRoutes.get('/api/presales/content/:id/download', requirePresalesTenant, ctrl.download)
 presalesContentRoutes.post('/api/presales/content/:id/ensure-artifact', requirePresalesTenant, ctrl.ensureArtifact)
 presalesContentRoutes.post('/api/presales/content/:id/export-pptx', requirePresalesTenant, ctrl.exportPptx)
+presalesContentRoutes.get('/api/presales/content/:id/generation-payload', requirePresalesTenant, ctrl.generationPayload)
+presalesContentRoutes.post('/api/presales/content/:id/generation-finalize', requirePresalesTenant, ctrl.generationFinalize)
 presalesContentRoutes.post('/api/presales/content/:id/generate', requirePresalesTenant, ctrl.generate)
 presalesContentRoutes.get('/api/presales/content/:id', requirePresalesTenant, ctrl.get)
 presalesContentRoutes.patch('/api/presales/content/:id', requirePresalesTenant, ctrl.patch)

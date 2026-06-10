@@ -10,7 +10,11 @@ import {
   updateContentDraft,
   type ContentDraftRecord,
 } from '../../services/presales/content-service'
-import { runContentGeneration } from '../../services/presales/content-generation'
+import {
+  finalizeContentGeneration,
+  prepareContentGenerationRun,
+  runContentGeneration,
+} from '../../services/presales/content-generation'
 import { runContentExportPptx } from '../../services/presales/content-export-pptx'
 import { buildPptxPreview } from '../../services/presales/presales-pptx-preview'
 import { readPresalesManifest } from '../../services/presales/presales-profile-provision'
@@ -184,6 +188,55 @@ export async function ensureArtifact(ctx: Context) {
   } catch (err: any) {
     ctx.status = err?.message === 'Content draft not found' ? 404 : 500
     ctx.body = { error: err?.message || 'Failed to ensure content artifact' }
+  }
+}
+
+export async function generationPayload(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  try {
+    const payload = await prepareContentGenerationRun(tenant, ctx.params.id)
+    ctx.body = { ...payload, tenant: tenantSummary(ctx) }
+  } catch (err: any) {
+    const message = err?.message || 'Failed to prepare content generation'
+    if (message === 'Content draft not found') {
+      ctx.status = 404
+    } else if (message === 'Draft is not in generating status') {
+      ctx.status = 409
+    } else {
+      ctx.status = 500
+    }
+    ctx.body = { error: message }
+  }
+}
+
+export async function generationFinalize(ctx: Context) {
+  const tenant = ctx.state.presalesTenant
+  if (!tenant) {
+    ctx.status = 403
+    ctx.body = { error: 'Tenant context is required' }
+    return
+  }
+
+  const body = (ctx.request.body || {}) as { error?: string }
+  const error = typeof body.error === 'string' ? body.error : undefined
+
+  try {
+    const result = await finalizeContentGeneration(tenant, ctx.params.id, { error })
+    ctx.body = { item: result.item, warning: result.warning, tenant: tenantSummary(ctx) }
+  } catch (err: any) {
+    const message = err?.message || 'Failed to finalize content generation'
+    if (message === 'Content draft not found') {
+      ctx.status = 404
+    } else {
+      ctx.status = 500
+    }
+    ctx.body = { error: message }
   }
 }
 

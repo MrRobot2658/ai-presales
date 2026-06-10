@@ -92,6 +92,66 @@ export async function ensureContentArtifact(id: string, tenantSlug?: string): Pr
   return data.item
 }
 
+export interface ContentGenerationRunPayload {
+  sessionId: string
+  profile: string
+  input: string
+  instructions: string
+  draftId: string
+  title: string
+}
+
+export async function getContentGenerationPayload(
+  id: string,
+  tenantSlug?: string,
+): Promise<ContentGenerationRunPayload> {
+  const res = await fetch(
+    `${presalesBaseUrl()}/api/presales/content/${encodeURIComponent(id)}/generation-payload`,
+    { headers: presalesHeaders(tenantSlug) },
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    let message = text
+    try {
+      const parsed = JSON.parse(text) as { error?: string }
+      message = parsed.error || text
+    } catch {
+      // keep raw text
+    }
+    throw new Error(message || `Failed to prepare content generation (${res.status})`)
+  }
+  const data = await res.json() as ContentGenerationRunPayload
+  return data
+}
+
+export async function finalizeContentGeneration(
+  id: string,
+  payload: { error?: string } = {},
+  tenantSlug?: string,
+): Promise<{ item: ContentDraftRecord; warning?: string }> {
+  const res = await fetch(
+    `${presalesBaseUrl()}/api/presales/content/${encodeURIComponent(id)}/generation-finalize`,
+    {
+      method: 'POST',
+      headers: presalesHeaders(tenantSlug),
+      body: JSON.stringify(payload),
+    },
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    let message = text
+    try {
+      const parsed = JSON.parse(text) as { error?: string }
+      message = parsed.error || text
+    } catch {
+      // keep raw text
+    }
+    throw new Error(message || `Failed to finalize content generation (${res.status})`)
+  }
+  const data = await res.json() as { item: ContentDraftRecord; warning?: string }
+  return data
+}
+
 export async function generateContentDraft(id: string, tenantSlug?: string): Promise<{
   item: ContentDraftRecord
   warning?: string

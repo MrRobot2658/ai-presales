@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { createSession } from '../../db/hermes/session-store'
 import { pgQuery } from '../../db/postgres/pool'
 import { AgentBridgeClient } from '../hermes/agent-bridge'
@@ -13,8 +14,16 @@ import {
 import { getContentDraftPath } from './presales-profile-paths'
 import { getOpportunity } from './opportunity-service'
 import { getProfileDir } from '../hermes/hermes-profile'
-import { existsSync } from 'fs'
 import type { PresalesTenantContext } from './tenant-context'
+
+export interface ContentGenerationRunPayload {
+  sessionId: string
+  profile: string
+  input: string
+  instructions: string
+  draftId: string
+  title: string
+}
 
 function scenarioLabels(scenario: string[]): string {
   return scenario.map((value) => {
@@ -99,17 +108,23 @@ async function reloadDraftFromDisk(profileName: string, draftId: string): Promis
   }
 }
 
-export async function runContentGeneration(
+async function assertGeneratingDraft(
   tenant: PresalesTenantContext,
   draftId: string,
-): Promise<{ item: ContentDraftRecord; warning?: string }> {
-  const profileName = tenant.hermesProfileName
-  let draft = await getContentDraft(tenant, draftId)
+): Promise<ContentDraftRecord> {
+  const draft = await getContentDraft(tenant, draftId)
   if (!draft) throw new Error('Content draft not found')
   if (draft.status !== 'generating') {
     throw new Error('Draft is not in generating status')
   }
+  return draft
+}
 
+async function buildGenerationContext(
+  tenant: PresalesTenantContext,
+  draft: ContentDraftRecord,
+): Promise<{ instructions: string; input: string; sessionId: string }> {
+  const profileName = tenant.hermesProfileName
   const opportunity = draft.opportunityId
     ? await getOpportunity(tenant, draft.opportunityId)
     : null
@@ -125,8 +140,8 @@ export async function runContentGeneration(
 
   const knowledgeLines = await resolveKnowledgeHints(tenant, draft.knowledgeRefs)
   const instructions = buildGenerationInstructions(draft, opportunityText, knowledgeLines)
-  const userMessage = buildGenerationPrompt(draft)
-  const sessionId = `presales-content-gen-${draftId}`
+  const input = buildGenerationPrompt(draft)
+  const sessionId = `presales-content-gen-${draft.id}`
 
   createSession({
     id: sessionId,
@@ -135,10 +150,76 @@ export async function runContentGeneration(
     title: `Generate HTML: ${draft.title}`,
   })
 
+  return { instructions, input, sessionId }
+}
+
+export async function prepareContentGenerationRun(
+  tenant: PresalesTenantContext,
+  draftId: string,
+): Promise<ContentGenerationRunPayload> {
+  const draft = await assertGeneratingDraft(tenant, draftId)
+  const { instructions, input, sessionId } = await buildGenerationContext(tenant, draft)
+
+  return {
+    sessionId,
+    profile: tenant.hermesProfileName,
+    input,
+    instructions,
+    draftId,
+    title: draft.title,
+  }
+}
+
+export async function finalizeContentGeneration(
+  tenant: PresalesTenantContext,
+  draftId: string,
+  options: { error?: string } = {},
+): Promise<{ item: ContentDraftRecord; warning?: string }> {
+  const profileName = tenant.hermesProfileName
+  const draft = await getContentDraft(tenant, draftId)
+  if (!draft) throw new Error('Content draft not found')
+
+  const errorMessage = options.error?.trim()
+  if (errorMessage) {
+    logger.error('[presales-content] generation failed for draft %s: %s', draftId, errorMessage)
+    const updated = await updateContentDraft(tenant, draftId, {
+      status: 'completed',
+      htmlContent: draft.htmlContent,
+      sections: draft.sections,
+    })
+    if (!updated) throw new Error('Failed to update draft after generation')
+    await syncDraftHtmlFile(profileName, updated)
+    return { item: updated, warning: errorMessage }
+  }
+
+  const reloaded = await reloadDraftFromDisk(profileName, draftId)
+  const htmlContent = reloaded?.htmlContent?.trim() ? reloaded.htmlContent : draft.htmlContent
+  const sections = reloaded?.sections?.length ? reloaded.sections : draft.sections
+
+  const updated = await updateContentDraft(tenant, draftId, {
+    status: 'completed',
+    htmlContent,
+    sections,
+  })
+  if (!updated) throw new Error('Failed to update draft after generation')
+  await syncDraftHtmlFile(profileName, updated)
+
+  logger.info({ draftId, profile: profileName }, '[presales-content] HTML generation completed')
+  return { item: updated }
+}
+
+export async function runContentGeneration(
+  tenant: PresalesTenantContext,
+  draftId: string,
+): Promise<{ item: ContentDraftRecord; warning?: string }> {
+  const draft = await assertGeneratingDraft(tenant, draftId)
+  const { instructions, input, sessionId } = await buildGenerationContext(tenant, draft)
+  const profileName = tenant.hermesProfileName
+
   let bridge: AgentBridgeClient | null = null
   try {
     bridge = new AgentBridgeClient({ connectRetryMs: 15_000, timeoutMs: 600_000 })
-    const started = await bridge.chat(sessionId, userMessage, [], instructions, profileName, {
+    const started = await bridge.chat(sessionId, input, [], instructions, profileName, {
       source: 'presales_content',
     })
 
@@ -149,33 +230,11 @@ export async function runContentGeneration(
     const result = await bridge.getResult(started.run_id, { timeoutMs: 120_000 })
     if (result.error) throw new Error(String(result.error))
 
-    const reloaded = await reloadDraftFromDisk(profileName, draftId)
-    const htmlContent = reloaded?.htmlContent?.trim() ? reloaded.htmlContent : draft.htmlContent
-    const sections = reloaded?.sections?.length ? reloaded.sections : draft.sections
-
-    const updated = await updateContentDraft(tenant, draftId, {
-      status: 'completed',
-      htmlContent,
-      sections,
-    })
-    if (!updated) throw new Error('Failed to update draft after generation')
-    await syncDraftHtmlFile(profileName, updated)
-
-    logger.info({ draftId, profile: profileName }, '[presales-content] HTML generation completed')
-    return { item: updated }
+    return finalizeContentGeneration(tenant, draftId)
   } catch (err: any) {
-    logger.error(err, '[presales-content] generation failed for draft %s', draftId)
     const message = err?.message || String(err)
-    const updated = await updateContentDraft(tenant, draftId, {
-      status: 'completed',
-      htmlContent: draft.htmlContent,
-      sections: draft.sections,
-    })
-    if (updated) {
-      await syncDraftHtmlFile(profileName, updated)
-      return { item: updated, warning: message }
-    }
-    throw err
+    const finalized = await finalizeContentGeneration(tenant, draftId, { error: message })
+    return finalized
   } finally {
     await bridge?.close()
   }
