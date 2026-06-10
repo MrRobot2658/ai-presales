@@ -12,6 +12,7 @@ import {
 } from '../../services/presales/content-service'
 import { runContentGeneration } from '../../services/presales/content-generation'
 import { runContentExportPptx } from '../../services/presales/content-export-pptx'
+import { buildPptxPreview } from '../../services/presales/presales-pptx-preview'
 import { readPresalesManifest } from '../../services/presales/presales-profile-provision'
 
 function tenantSummary(ctx: Context) {
@@ -155,7 +156,13 @@ export async function preview(ctx: Context) {
   }
 
   if (ext === '.pptx' || ext === '.ppt') {
-    ctx.body = { type: 'html', fileName: artifact.filename }
+    try {
+      const payload = await buildPptxPreview(artifact.absPath, artifact.filename)
+      ctx.body = payload
+    } catch (err: any) {
+      ctx.status = 500
+      ctx.body = { error: err?.message || 'Failed to build PPT preview' }
+    }
     return
   }
 

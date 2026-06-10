@@ -4,11 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NSpin, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { downloadContentFile, exportContentToPptx } from '@/api/presales/content'
+import ContentDraftReferencePanel from '@/components/presales/ContentDraftReferencePanel.vue'
 import ContentFilePreviewPane from '@/components/presales/ContentFilePreviewPane.vue'
-import ContentHtmlPreviewPane from '@/components/presales/ContentHtmlPreviewPane.vue'
+import ContentHtmlComponentPalette from '@/components/presales/ContentHtmlComponentPalette.vue'
+import ContentHtmlEditorPane from '@/components/presales/ContentHtmlEditorPane.vue'
 import { usePresalesContentHermesEdit } from '@/composables/usePresalesContentHermesEdit'
 import { usePresalesStore } from '@/stores/presales'
 import { contentFileBasename, resolveContentPreviewKind } from '@/utils/content-preview'
+import { parseHtmlToSections } from '@/utils/html-sections'
 import type { ContentDraft } from '@/data/presales-mock'
 
 const { t } = useI18n()
@@ -21,12 +24,11 @@ const { isEditing, streamingText, chatMessages, runHermesEdit, stopEdit } = useP
 const draftId = computed(() => route.params.draftId as string)
 const draft = ref<ContentDraft | null>(null)
 const htmlContent = ref('')
-const sections = ref<{ id: string; title: string; content: string }[]>([])
 const chatInput = ref('')
 const previewKey = ref(0)
 const loading = ref(true)
 const downloading = ref(false)
-const dragIndex = ref<number | null>(null)
+const htmlEditorRef = ref<InstanceType<typeof ContentHtmlEditorPane> | null>(null)
 
 const previewFileName = computed(() => {
   const name = draft.value?.outputFile || draft.value?.title || ''
@@ -34,30 +36,38 @@ const previewFileName = computed(() => {
 })
 const previewKind = computed(() => resolveContentPreviewKind(previewFileName.value))
 const isPdfDraft = computed(() => previewKind.value === 'pdf')
-const isPptDraft = computed(() => previewKind.value === 'ppt')
-const showOutline = computed(() => !isPdfDraft.value && sections.value.length > 0)
+const hasPptArtifact = computed(() => previewKind.value === 'ppt')
+const isHtmlEditorMode = computed(() => !isPdfDraft.value)
+
+const referenceOpportunity = computed(() => {
+  if (!draft.value?.opportunityId) return null
+  return store.getOpportunity(draft.value.opportunityId) ?? null
+})
+
+const knowledgeLabels = computed(() => {
+  if (!draft.value) return []
+  return store.knowledgeRefLabels(draft.value.knowledgeRefs)
+})
 
 function buildFallbackHtml(item: ContentDraft): string {
   if (item.htmlContent?.trim()) return item.htmlContent
   if (item.sections?.length) {
     return item.sections
-      .map((s) => `<section><h2>${s.title}</h2><p>${s.content}</p></section>`)
+      .map((s) => `<section class="slide"><h2>${s.title}</h2><p>${s.content}</p></section>`)
       .join('\n')
   }
-  return `<h1>${item.title || item.companyName}</h1><section><h2>方案概览</h2><p>下载时将转换为 PPT 文件。</p></section>`
-}
-
-function buildFallbackSections(item: ContentDraft) {
-  if (item.sections?.length) return item.sections.map((s) => ({ ...s }))
-  return [
-    { id: 's1', title: '封面', content: item.companyName || item.title },
-    { id: 's2', title: '方案概览', content: '可在左侧大纲编辑，下载时导出为 PPT。' },
-  ]
+  return `<section class="slide"><h1>${item.title || item.companyName}</h1><p>${t('presales.editor.htmlPreviewEmpty')}</p></section>`
 }
 
 async function loadDraftData() {
   loading.value = true
   try {
+    if (store.opportunities.length === 0) {
+      await store.fetchOpportunities()
+    }
+    if (store.knowledgeFiles.length === 0) {
+      await store.fetchKnowledgeFiles()
+    }
     draft.value = store.getDraft(draftId.value) || await store.loadContentDraft(draftId.value)
   } catch (err: any) {
     message.error(err?.message || t('presales.editor.loadFailed'))
@@ -72,23 +82,22 @@ async function loadDraftData() {
   }
 
   htmlContent.value = buildFallbackHtml(draft.value)
-  sections.value = buildFallbackSections(draft.value)
 }
 
 async function persistDraft() {
-  await store.saveDraft(draftId.value, htmlContent.value, sections.value)
+  const sections = parseHtmlToSections(htmlContent.value)
+  await store.saveDraft(draftId.value, htmlContent.value, sections)
 }
 
 async function startHermesEdit(instruction: string) {
   const trimmed = instruction.trim()
   if (!trimmed) return
 
-  if (isPptDraft.value) {
+  if (isPdfDraft.value) {
     chatMessages.value.push({ role: 'user', text: trimmed })
-    await persistDraft()
     chatMessages.value.push({
       role: 'assistant',
-      text: t('presales.editor.htmlEditHint'),
+      text: t('presales.editor.pdfEditHint'),
     })
     return
   }
@@ -96,6 +105,7 @@ async function startHermesEdit(instruction: string) {
   if (!draft.value?.outputFile) return
 
   try {
+    await persistDraft()
     await runHermesEdit({
       draftId: draftId.value,
       outputFile: draft.value.outputFile,
@@ -105,6 +115,10 @@ async function startHermesEdit(instruction: string) {
       tenantSlug: store.tenantSlug ?? undefined,
     })
     draft.value = { ...draft.value, status: 'completed' }
+    const refreshed = store.getDraft(draftId.value) || await store.loadContentDraft(draftId.value)
+    if (refreshed?.htmlContent?.trim()) {
+      htmlContent.value = refreshed.htmlContent
+    }
     previewKey.value += 1
   } catch (err: any) {
     message.error(err?.message || t('presales.editor.editFailed'))
@@ -129,13 +143,14 @@ async function downloadDoc() {
   try {
     await persistDraft()
 
-    if (isPptDraft.value) {
+    if (hasPptArtifact.value) {
       await exportContentToPptx(draftId.value, {
         htmlContent: htmlContent.value,
-        sections: sections.value,
+        sections: parseHtmlToSections(htmlContent.value),
       }, store.tenantSlug ?? undefined)
       await downloadContentFile(draftId.value, store.tenantSlug ?? undefined)
       message.success(t('presales.editor.downloadPptDone'))
+      previewKey.value += 1
       return
     }
 
@@ -158,30 +173,8 @@ async function downloadDoc() {
   }
 }
 
-function onDragStart(idx: number) {
-  dragIndex.value = idx
-}
-
-function onDrop(idx: number) {
-  if (dragIndex.value === null || dragIndex.value === idx) return
-  const list = [...sections.value]
-  const [item] = list.splice(dragIndex.value, 1)
-  list.splice(idx, 0, item)
-  sections.value = list
-  dragIndex.value = null
-  syncAllSectionsToHtml()
-}
-
-function syncSectionToHtml(sectionId: string, content: string) {
-  const section = sections.value.find((s) => s.id === sectionId)
-  if (section) section.content = content
-  syncAllSectionsToHtml()
-}
-
-function syncAllSectionsToHtml() {
-  htmlContent.value = sections.value
-    .map((s) => `<section><h2>${s.title}</h2><p>${s.content.replace(/\n/g, '<br/>')}</p></section>`)
-    .join('\n')
+function insertComponent(html: string) {
+  htmlEditorRef.value?.insertHtml(html)
 }
 
 const displayMessages = computed(() => {
@@ -191,6 +184,12 @@ const displayMessages = computed(() => {
   }
   return items
 })
+
+const chatPlaceholder = computed(() => (
+  isPdfDraft.value
+    ? t('presales.editor.pptChatPlaceholder')
+    : t('presales.editor.chatPlaceholder')
+))
 
 onMounted(() => {
   void loadDraftData()
@@ -206,9 +205,9 @@ onUnmounted(() => {
     <header class="editor-toolbar">
       <strong>{{ draft?.title }}</strong>
       <div class="toolbar-actions">
-        <NButton v-if="showOutline" size="small" @click="saveDraft">{{ t('presales.editor.saveDraft') }}</NButton>
+        <NButton v-if="isHtmlEditorMode" size="small" @click="saveDraft">{{ t('presales.editor.saveDraft') }}</NButton>
         <NButton size="small" type="primary" :loading="downloading" :disabled="isEditing" @click="downloadDoc">
-          {{ isPptDraft ? t('presales.editor.downloadPpt') : t('presales.editor.download') }}
+          {{ hasPptArtifact ? t('presales.editor.downloadPpt') : t('presales.editor.download') }}
         </NButton>
       </div>
     </header>
@@ -217,28 +216,16 @@ onUnmounted(() => {
       <NSpin size="large" />
     </div>
 
-    <div v-else class="editor-layout" :class="{ 'with-outline': showOutline, 'pdf-mode': isPdfDraft }">
-      <aside v-if="showOutline" class="outline">
-        <h4>{{ t('presales.editor.outline') }}</h4>
-        <div
-          v-for="(section, idx) in sections"
-          :key="section.id"
-          class="outline-block"
-          draggable="true"
-          @dragstart="onDragStart(idx)"
-          @dragover.prevent
-          @drop="onDrop(idx)"
-        >
-          <strong>{{ section.title }}</strong>
-          <NInput
-            :value="section.content"
-            type="textarea"
-            :rows="3"
-            :disabled="isEditing"
-            @update:value="(v) => syncSectionToHtml(section.id, v)"
-          />
-        </div>
-      </aside>
+    <div
+      v-else
+      class="editor-layout"
+      :class="{ 'html-mode': isHtmlEditorMode, 'file-mode': !isHtmlEditorMode }"
+    >
+      <ContentHtmlComponentPalette
+        v-if="isHtmlEditorMode"
+        :disabled="isEditing"
+        @insert="insertComponent"
+      />
 
       <main class="content-area">
         <div v-if="isPdfDraft" class="file-layer">
@@ -249,15 +236,24 @@ onUnmounted(() => {
             :preview-key="previewKey"
           />
         </div>
-        <ContentHtmlPreviewPane
+        <ContentHtmlEditorPane
           v-else
+          ref="htmlEditorRef"
           :title="draft?.title || ''"
           :html-content="htmlContent"
+          :disabled="isEditing"
+          @update:html-content="htmlContent = $event"
         />
       </main>
 
       <aside class="ai-panel">
         <h4>{{ t('presales.editor.aiChat') }}</h4>
+        <ContentDraftReferencePanel
+          v-if="draft && isHtmlEditorMode"
+          :draft="draft"
+          :opportunity="referenceOpportunity"
+          :knowledge-labels="knowledgeLabels"
+        />
         <div class="chat-list">
           <div
             v-for="(msg, idx) in displayMessages"
@@ -272,7 +268,7 @@ onUnmounted(() => {
           type="textarea"
           :rows="3"
           :disabled="isEditing"
-          :placeholder="t('presales.editor.chatPlaceholder')"
+          :placeholder="chatPlaceholder"
         />
         <NButton type="primary" block size="small" :loading="isEditing" @click="sendChat">
           {{ t('presales.editor.send') }}
@@ -319,53 +315,45 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 320px;
 
-  &.with-outline {
-    grid-template-columns: 280px 1fr 320px;
+  &.html-mode {
+    grid-template-columns: 220px 1fr 320px;
   }
 
-  &.pdf-mode {
+  &.file-mode {
     grid-template-columns: 1fr 320px;
   }
 }
 
-.outline,
 .ai-panel,
 .content-area {
   min-height: 0;
   overflow: auto;
-  padding: 14px;
-  border-right: 1px solid $border-color;
 }
 
-.ai-panel { border-right: none; border-left: 1px solid $border-color; }
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-left: 1px solid $border-color;
+}
 
-.outline h4,
 .ai-panel h4 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 13px;
   color: $text-secondary;
-}
-
-.outline-block {
-  padding: 10px;
-  margin-bottom: 10px;
-  border: 1px dashed $border-color;
-  border-radius: $radius-sm;
-  cursor: grab;
-
-  strong {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 13px;
-    color: $text-primary;
-  }
 }
 
 .content-area {
   position: relative;
   padding: 0;
+  min-height: 0;
+  overflow: hidden;
+
+  :deep(.html-editor) {
+    height: 100%;
+  }
 }
 
 .file-layer {
@@ -376,10 +364,11 @@ onUnmounted(() => {
 
 .chat-list {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 10px;
-  max-height: 360px;
+  min-height: 120px;
+  max-height: 320px;
   overflow: auto;
 }
 
@@ -407,13 +396,15 @@ onUnmounted(() => {
 }
 
 @media (max-width: $breakpoint-mobile) {
-  .editor-layout,
-  .editor-layout.with-outline,
-  .editor-layout.pdf-mode {
+  .editor-layout.html-mode,
+  .editor-layout.file-mode {
     grid-template-columns: 1fr;
   }
 
-  .outline,
+  .editor-layout.html-mode :deep(.component-palette) {
+    display: none;
+  }
+
   .ai-panel {
     display: none;
   }

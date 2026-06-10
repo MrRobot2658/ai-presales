@@ -140,20 +140,32 @@ export async function exportContentToPptx(
   return data.item
 }
 
-export interface PdfPreviewPayload {
-  type: 'pdf'
+export interface PptxPreviewImage {
   fileName: string
+  mimeType: string
+  dataUrl: string
 }
 
-export type ContentPreviewPayload = PdfPreviewPayload | HtmlPreviewPayload | PptxPreviewPayload
-
-export interface HtmlPreviewPayload {
-  type: 'html'
-  fileName: string
+export interface PptxPreviewSlide {
+  index: number
+  name: string
+  title: string
+  backgroundColor: string
+  texts: string[]
+  images: PptxPreviewImage[]
 }
 
 export interface PptxPreviewPayload {
   type: 'pptx'
+  fileName: string
+  slideCount: number
+  slides: PptxPreviewSlide[]
+}
+
+export type ContentPreviewPayload = PdfPreviewPayload | PptxPreviewPayload
+
+export interface PdfPreviewPayload {
+  type: 'pdf'
   fileName: string
 }
 
